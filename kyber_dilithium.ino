@@ -9,6 +9,7 @@
 #include "src/include/kyber_modular.h"
 #include "src/include/dilithium.h"
 #include "src/include/encryption.h"
+#include "src/include/network.h"
 
 #ifdef ENABLE_PQC_TESTS
   #include "src/tests/test_suite.h"
@@ -18,6 +19,9 @@
 using namespace PQC::KEM;
 using namespace PQC::DSA;
 using namespace PQC::Symmetric;
+using namespace PQC::Network;
+
+const uint8_t PEER_MAC[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 
 // Bellek tamponları (Statik)
 static uint8_t pk[2048];
@@ -117,6 +121,9 @@ void setup() {
     Serial.begin(115200);
     delay(2000);
     Serial.println("\n===== ESP32 POST-QUANTUM SUITE (KYBER & DILITHIUM) =====");
+    
+    // Ağ ve ESP-NOW Katmanını başlat
+    Messenger::init();
     
     // Uygulama başlamadan önce birim testleri (Unit Tests) çalıştır
     #ifdef ENABLE_PQC_TESTS
