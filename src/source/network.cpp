@@ -157,6 +157,15 @@ void network_task(void* pvParameters) {
 
 void Messenger::on_data_recv(const uint8_t* mac, const uint8_t* incomingData, int len) {
     if (len < 4) return;
+    
+    // 0. TRUST-CHAIN (Whitelisting): Bilinmeyen MAC'lerden gelen veriyi reddet
+    if (!PQC::System::KeyVault::is_peer_trusted(mac)) {
+        #ifndef PQC_SILENT_MODE
+        Serial.println("\n[SECURITY] Trust-Chain Violation: Whitelisted olmayan MAC engellendi!");
+        #endif
+        return;
+    }
+
     fragment_packet_t* pkt = (fragment_packet_t*)incomingData;
     
     if (pkt->type == MSG_ACK) {

@@ -219,6 +219,7 @@ void setup() {
     #endif
 
     KeyVault::init();
+    KeyVault::add_trusted_peer(PEER_MAC); // Demo icin guvenli listeye ekle
     test_persistent_vault();
     
     #ifdef ENABLE_PQC_TESTS

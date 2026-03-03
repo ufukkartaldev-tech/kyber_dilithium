@@ -151,6 +151,30 @@ bool KeyVault::load_config_uint32(const char* name, uint32_t* value) {
     return (err == ESP_OK);
 }
 
+bool KeyVault::is_peer_trusted(const uint8_t* mac) {
+    nvs_handle_t nvs_handle;
+    if (nvs_open("pqc_peers", NVS_READONLY, &nvs_handle) == ESP_OK) {
+        char mac_str[13];
+        sprintf(mac_str, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+        uint8_t dummy;
+        esp_err_t err = nvs_get_u8(nvs_handle, mac_str, &dummy);
+        nvs_close(nvs_handle);
+        return (err == ESP_OK);
+    }
+    return false;
+}
+
+void KeyVault::add_trusted_peer(const uint8_t* mac) {
+    nvs_handle_t nvs_handle;
+    if (nvs_open("pqc_peers", NVS_READWRITE, &nvs_handle) == ESP_OK) {
+        char mac_str[13];
+        sprintf(mac_str, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+        nvs_set_u8(nvs_handle, mac_str, 1);
+        nvs_commit(nvs_handle);
+        nvs_close(nvs_handle);
+    }
+}
+
 } // namespace System
 } // namespace PQC
 
