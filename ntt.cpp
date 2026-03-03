@@ -25,7 +25,7 @@ const int16_t zetas[128] = {
 // Montgomery Reduction: a * 2^-16 mod 3329
 // Bu işlem, bilgisayarın zorlandığı 'modül' (bölme) işlemini, 
 // çok daha hızlı olan 'kaydırma' (shift) ve 'çarpma' işlemlerine dönüştürür.
-static int16_t montgomery_reduce(int32_t a) {
+int16_t montgomery_reduce(int32_t a) {
     int32_t t;
     int16_t u;
     u = (int16_t)(a * QINV);

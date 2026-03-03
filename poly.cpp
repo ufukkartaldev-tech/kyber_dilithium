@@ -116,6 +116,12 @@ void poly_basemul_montgomery(poly *r, const poly *a, const poly *b) {
     }
 }
 
+// Polinomu Montgomery alanına taşır. (Katsayıları r * 2^16 mod q ile çarpar)
+void poly_tomont(poly *r) {
+  for (int i = 0; i < 256; i++)
+    r->coeffs[i] = montgomery_reduce((int32_t)r->coeffs[i] * 1353); // 1353 = 2^32 % 3329
+}
+
 void poly_add(poly *r, const poly *a, const poly *b) {
     for (int i = 0; i < 256; i++)
         r->coeffs[i] = a->coeffs[i] + b->coeffs[i];
