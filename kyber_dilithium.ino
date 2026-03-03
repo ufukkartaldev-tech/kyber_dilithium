@@ -8,9 +8,11 @@
 #include <Arduino.h>
 #include "src/include/kyber_modular.h"
 #include "src/include/dilithium.h"
+#include "src/include/test_suite.h"
 
 using namespace PQC::KEM;
 using namespace PQC::DSA;
+using namespace PQC::Test;
 
 // Bellek tamponları (Statik)
 static uint8_t pk[2048];
@@ -59,6 +61,9 @@ void setup() {
     Serial.begin(115200);
     delay(2000);
     Serial.println("\n===== ESP32 POST-QUANTUM SUITE (KYBER & DILITHIUM) =====");
+    
+    // Uygulama başlamadan önce birim testleri (Unit Tests) çalıştır
+    TestSuite::run_all_tests();
     
     test_kyber();
     test_dilithium();
