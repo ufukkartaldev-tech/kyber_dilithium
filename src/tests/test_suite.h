@@ -17,6 +17,10 @@ private:
     static bool test_ntt_symmetry();
     static bool test_poly_serialization();
     static bool test_kyber_kem_vectors();
+    static bool test_decaps_failure();
+    static bool test_ntt_edge_cases();
+    static bool test_randomness_entropy();
+    static bool test_dilithium_malleability();
     
     // Yardımcılar
     static void log_test(const char* name, bool result);

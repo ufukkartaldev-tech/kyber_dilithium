@@ -3,6 +3,7 @@
 #include "../include/ntt.h"
 #include "../include/poly.h"
 #include "../include/kyber_modular.h"
+#include "../include/dilithium.h"
 #include <string.h>
 
 namespace PQC {
@@ -73,7 +74,6 @@ bool TestSuite::test_poly_serialization() {
     return true;
 }
 
-// 4. Kyber-512 KEM Döngü Testi (10 Iterasyon)
 bool TestSuite::test_kyber_kem_vectors() {
     uint8_t pk[KYBER_512_PUBLICKEYBYTES];
     uint8_t sk[KYBER_512_SECRETKEYBYTES];
@@ -89,13 +89,89 @@ bool TestSuite::test_kyber_kem_vectors() {
     return true;
 }
 
+// 5. Implicit Rejection Testi
+// Ciphertext bozulursa shared secret rastgele (farklı) olmalı
+bool TestSuite::test_decaps_failure() {
+    uint8_t pk[KYBER_512_PUBLICKEYBYTES];
+    uint8_t sk[KYBER_512_SECRETKEYBYTES];
+    uint8_t ct[KYBER_512_CIPHERTEXTBYTES];
+    uint8_t ss1[32], ss2[32];
+    
+    KEM::Kyber512::keypair(pk, sk);
+    KEM::Kyber512::encaps(ct, ss1, pk);
+    
+    // Ciphertext'i boz (Implicit Rejection testi)
+    ct[10] ^= 0xFF; 
+    
+    KEM::Kyber512::decaps(ss2, ct, sk);
+    
+    // ss1 ve ss2 farklı olmalı
+    return !compare_bytes(ss1, ss2, 32);
+}
+
+// 6. NTT Sınır Durum (Edge Case) Testi
+bool TestSuite::test_ntt_edge_cases() {
+    int16_t r[256];
+    for(int i=0; i<256; i++) r[i] = 3329; // Q değeri (mod Q = 0 olmalı)
+    
+    ntt(r);
+    invntt(r);
+    
+    for(int i=0; i<256; i++) {
+        int16_t c = (r[i] % 3329 + 3329) % 3329;
+        if (c != 0) return false;
+    }
+    return true;
+}
+
+// 7. Rastgelelik (Entropy) Kalite Testi
+bool TestSuite::test_randomness_entropy() {
+    uint8_t pk[KYBER_512_PUBLICKEYBYTES];
+    uint8_t sk[KYBER_512_SECRETKEYBYTES];
+    uint8_t first_bytes[100][8]; // ESP32 RAM limitlerine uygun sayı
+    
+    for(int i=0; i<100; i++) {
+        KEM::Kyber512::keypair(pk, sk);
+        memcpy(first_bytes[i], pk, 8);
+        
+        // Öncekilerle karşılaştır
+        for(int j=0; j<i; j++) {
+            if(compare_bytes(first_bytes[i], first_bytes[j], 8)) return false;
+        }
+    }
+    return true;
+}
+
+// 8. Dilithium Malleability Testi
+bool TestSuite::test_dilithium_malleability() {
+    uint8_t d_pk[2048];
+    uint8_t d_sk[4096];
+    uint8_t sig[2420]; 
+    size_t siglen;
+    const uint8_t msg[] = "Test Message";
+    
+    DSA::Dilithium2::keypair(d_pk, d_sk);
+    DSA::Dilithium2::sign(sig, &siglen, msg, sizeof(msg), d_sk);
+    
+    // İmzayı boz
+    sig[20] ^= 0x01;
+    
+    // Verify başarısız olmalı (0 dönmeli veya hata kodu)
+    int res = DSA::Dilithium2::verify(sig, siglen, msg, sizeof(msg), d_pk);
+    return (res != 0); 
+}
+
 void TestSuite::run_all_tests() {
     Serial.println("\n--- PQC UNIT TEST SUITE BASLATILIYOR ---");
     
     log_test("Keccak (SHA3-256) KAT", test_keccak());
     log_test("NTT/InvNTT Symmetry", test_ntt_symmetry());
     log_test("Poly Serialization", test_poly_serialization());
-    log_test("Kyber-512 KEM Stability (10 Iteration)", test_kyber_kem_vectors());
+    log_test("Kyber-512 Stability", test_kyber_kem_vectors());
+    log_test("Kyber Implicit Rejection", test_decaps_failure());
+    log_test("NTT Edge Cases (Q values)", test_ntt_edge_cases());
+    log_test("Randomness Entropy (100 Keypairs)", test_randomness_entropy());
+    log_test("Dilithium Malleability (Signature)", test_dilithium_malleability());
     
     Serial.println("--- UNIT TESTLER TAMAMLANDI ---\n");
 }
