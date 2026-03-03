@@ -6,8 +6,8 @@
 */
 
 #include <Arduino.h>
-#include "kyber_modular.h"
-#include "dilithium.h"
+#include "src/kyber_modular.h"
+#include "src/dilithium.h"
 
 using namespace PQC::KEM;
 using namespace PQC::DSA;
