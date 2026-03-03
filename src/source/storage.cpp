@@ -21,20 +21,39 @@ bool KeyVault::init() {
         err = nvs_flash_init();
     }
     
-    generate_master_key(); // Cihazın kimliğini (MAC) kullanarak kasanın fiziksel anahtarını üret.
+    generate_master_key(); // Cihazin kimligini ve gizli tuzu kullanarak kasanin anahtarini uret.
     
     return (err == ESP_OK);
 }
 
 void KeyVault::generate_master_key() {
     uint8_t mac[6];
+    uint8_t secret_salt[32];
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
+
+    // Kasanin ikinci kilidi: Secret Salt (Donanimsal gizi bolgede saklanan tuz)
+    nvs_handle_t nvs_handle;
+    esp_err_t err = nvs_open("pqc_sys", NVS_READWRITE, &nvs_handle);
+    if (err == ESP_OK) {
+        size_t salt_len = 32;
+        if (nvs_get_blob(nvs_handle, "vault_salt", secret_salt, &salt_len) != ESP_OK) {
+            // İlk kurulum: Gercek rastgele tuz uret ve sakla
+            for(int i=0; i<32; i++) secret_salt[i] = (uint8_t)esp_random();
+            nvs_set_blob(nvs_handle, "vault_salt", secret_salt, 32);
+            nvs_commit(nvs_handle);
+            Serial.println("KEYVAULT: Yeni Gizli Tuz (Secret Salt) uretildi ve NVS'e gomuldu.");
+        }
+        nvs_close(nvs_handle);
+    } else {
+        // Yedek plan (NVS hatasi durumunda MAC'e don)
+        memset(secret_salt, 0xA5, 32);
+    }
     
-    // Basit ama cihaza özel bir Master Key (Gümüşhane usulü SHA256 ile karıştırıp 32 bayt yapalım)
-    // Gerçekte mbedtls_sha256 gibi bir şey daha iyidir ama MAC + Sabit ile dolduralım demoda.
-    memset(master_vault_key, 0x47, 32); // 'G' harfi (Gümüşhane)
-    memcpy(master_vault_key, mac, 6);   // İlk 6 baytı fiziksel MAC yapıyoruz.
-    for(int i=6; i<32; i++) master_vault_key[i] ^= (uint8_t)(i * 0x13); // Kalanı biraz karıştır.
+    // MASTER KEY DERIVATION: MAC + Secret Salt 
+    // Basit XOR/Shift yerine SHA256 ile karistirmak en dogrusu ama simdi hibrit yapiyoruz.
+    for(int i=0; i<32; i++) {
+        master_vault_key[i] = secret_salt[i] ^ (mac[i % 6] + (uint8_t)i);
+    }
 }
 
 bool KeyVault::save_key(const char* key_name, const uint8_t* key_data, size_t len) {
