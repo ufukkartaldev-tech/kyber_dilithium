@@ -49,8 +49,13 @@ public:
             uint32_t t = ((uint32_t)in[3 * i + 0]) |
                          ((uint32_t)in[3 * i + 1] << 8) |
                          ((uint32_t)in[3 * i + 2] << 16);
-            // Sign extension (Eğer 23. bit 1 ise negatif yap)
-            if (t & 0x00400000) t |= 0xFF800000;
+            
+            // Constant-Time Sign Extension (23-bit to 32-bit)
+            // Dallanma (branching) yok, sadece bit seviyesinde işlem.
+            uint32_t sign_bit = (t >> 22) & 0x01;
+            uint32_t mask = (uint32_t)(-(int32_t)sign_bit); 
+            t |= (mask & 0xFF800000);
+            
             out[i] = (int32_t)t;
         }
     }
