@@ -21,10 +21,13 @@ static volatile bool messenger_busy = false;
 static QueueHandle_t network_queue = NULL;
 
 struct network_msg_t {
-    uint8_t mac[6];
-    uint8_t data[4096]; // Maksimum paket boyutu (Dilithium Sig)
+    uint8_t target_mac[6]; // Şuradaki (Immediate) hedef
+    uint8_t final_mac[6];  // Nihai (Endpoint) hedef
+    uint8_t data[4096]; 
     size_t len;
 };
+
+static uint8_t LOCAL_MAC[6];
 
 void network_task(void* pvParameters);
 
@@ -38,6 +41,8 @@ bool Messenger::is_busy() {
 
 bool Messenger::init() {
     WiFi.mode(WIFI_STA);
+    esp_read_mac(LOCAL_MAC, ESP_MAC_WIFI_STA); // Kendi kimliğimizi öğrenelim (Mesh için)
+
     if (esp_now_init() != ESP_OK) {
         Serial.println("HATA: ESP-NOW baslatilamadi!");
         return false;
@@ -74,7 +79,8 @@ bool Messenger::send_reliable(const uint8_t* peer_mac, const uint8_t* data, size
     if (len > 4096) return false;
     
     network_msg_t msg;
-    memcpy(msg.mac, peer_mac, 6);
+    memcpy(msg.target_mac, peer_mac, 6); // Point-to-Point
+    memcpy(msg.final_mac, peer_mac, 6);  // Mesh Layer (Endpoint)
     memcpy(msg.data, data, len);
     msg.len = len;
 
@@ -99,6 +105,7 @@ void network_task(void* pvParameters) {
                                       msg.len - (i * PQC_PAYLOAD_SIZE) : PQC_PAYLOAD_SIZE;
                 
                 pkt.type = MSG_DATA;
+                memcpy(pkt.final_dest, msg.final_mac, 6); // Mesh Header ekle
                 pkt.seq = i;
                 pkt.total = total;
                 pkt.payload_len = (uint8_t)current_len;
@@ -108,7 +115,7 @@ void network_task(void* pvParameters) {
                 bool success = false;
                 while (retry < 3 && !success) {
                     ack_received = false;
-                    esp_now_send(msg.mac, (uint8_t*)&pkt, sizeof(pkt) - (PQC_PAYLOAD_SIZE - current_len));
+                    esp_now_send(msg.target_mac, (uint8_t*)&pkt, sizeof(pkt) - (PQC_PAYLOAD_SIZE - current_len));
                     
                     // Blocking wait inside dedicated network task (doesn't hurt PQC CPU)
                     uint32_t start = millis();
@@ -137,14 +144,26 @@ void Messenger::on_data_recv(const uint8_t* mac, const uint8_t* incomingData, in
     }
     
     if (pkt->type == MSG_DATA) {
+        // 1. MESH ROUTING KONTROLÜ
+        // Eğer nihai hedef biz değilsek ve yayın yapan da biz değilsek -> RELAY (B-Node)
+        if (memcmp(pkt->final_dest, LOCAL_MAC, 6) != 0) {
+            Serial.println("\n[MESH] Packet Relay: Biz durak değiliz, yönlendiriyoruz...");
+            // Basitlik (L2 Mesh): Hedefe doğru (veya bir sonrakine) ilet
+            // Gerçek mesh'te routing table olmalı, burada hedefe direkt iletmeyi deniyoruz (Flooding benzeri)
+            esp_now_send(pkt->final_dest, (uint8_t*)pkt, len);
+            return;
+        }
+
+        // 2. Kendi paketimiz ise işleme (Destination Hub)
         // ACK Gönder (Sıranın geldiğini onayla)
-        static fragment_packet_t ack_pkt; // Stack tasarrufu
+        static fragment_packet_t ack_pkt; 
         ack_pkt.type = MSG_ACK;
+        memcpy(ack_pkt.final_dest, pkt->final_dest, 6);
         ack_pkt.seq = pkt->seq;
-        esp_now_send(mac, (uint8_t*)&ack_pkt, 4); // Sadece başlığı gönder
+        esp_now_send(mac, (uint8_t*)&ack_pkt, 4 + 6); // Başlık + MAC size
         
         // Birleştirme (Sequence kontrolü)
-        if (pkt->seq == 0) recv_pos = 0; // Yeni mesaj başlangıcı
+        if (pkt->seq == 0) recv_pos = 0;
         
         // Basitlik için sırayla geldiğini varsayıyoruz (Reliable send garantiler)
         if (recv_pos + pkt->payload_len <= sizeof(RECV_BUFFER)) {

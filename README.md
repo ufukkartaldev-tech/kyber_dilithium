@@ -6,8 +6,9 @@ GümüşPQC is a high-performance, memory-efficient Post-Quantum Cryptography (P
 ## Key Features
 - **Kyber (512/768)**: Secure key exchange resistant to quantum computer attacks.
 - **Dilithium2**: Digital signature verification resilient against physical and theoretical exploits.
+- **PQC-Mesh Network**: Multi-hop routing and automated relaying (B-Node) layer for distributed communication over ESP-NOW.
 - **Hybrid Encryption**: Double-layer data security using hardware-accelerated AES-256-GCM and ChaCha20.
-- **ESP-NOW Integration**: An asynchronous and reliable wireless communication layer.
+- **Asynchronous Framework**: Dedicated network core (Core 0) to prevent CPU stalls during heavy PQC arithmetic.
 
 ## Memory Optimization Strategies
 To ensure stable operation within the 520 KB RAM limit of the ESP32, several advanced memory management techniques have been implemented:
@@ -20,6 +21,7 @@ To ensure stable operation within the 520 KB RAM limit of the ESP32, several adv
 4. **Lean Stack Design**: Large local arrays have been migrated to static storage to eliminate the risk of Stack Overflow during complex cryptographic operations.
 
 ## Performance and Asynchronous Architecture
+- **PQC-Mesh Routing**: Nodes automatically detect and forward packets if the final destination MAC differs from the local MAC, enabling multi-hop network topologies.
 - **Dual-Core Offloading**: ESP-NOW network traffic is handled by the Pro-Core (Core 0), while cryptographic computations are executed on the App-Core (Core 1), maximizing parallel processing capability.
 - **DMA Compatibility**: Network transmission buffers are 4-byte (32-bit) aligned to optimize hardware-level Direct Memory Access (DMA) speed.
 - **Non-Blocking Communication**: Data transmission is managed through FreeRTOS Queues, preventing CPU bottlenecks and ensuring system responsiveness.

@@ -18,7 +18,7 @@ namespace Network {
  * kısıtlı sistemlerde (RAM/Hız) optimize edilmiş haberleşme katmanı.
  */
 #define PQC_MAX_PACKET_SIZE 250
-#define PQC_PAYLOAD_SIZE    240
+#define PQC_PAYLOAD_SIZE    234 // Mesh Başlığı (6 byte) düştü.
 
 namespace PQC {
 namespace Network {
@@ -27,11 +27,12 @@ enum PacketType { MSG_DATA = 0, MSG_ACK = 1 };
 
 typedef struct {
     uint8_t type;        // PacketType
+    uint8_t final_dest[6]; // Nihai Hedef MAC (Mesh Routing)
     uint8_t seq;         // Sequence number
     uint8_t total;       // Total fragments
     uint8_t payload_len; // Content length
     uint8_t payload[PQC_PAYLOAD_SIZE];
-} __attribute__((packed, aligned(4))) fragment_packet_t; // DMA Dostu: 4-bayt hizalama
+} __attribute__((packed, aligned(4))) fragment_packet_t; // DMA: 250 bytes total
 
 class Messenger {
 public:
