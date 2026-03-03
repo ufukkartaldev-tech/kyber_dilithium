@@ -1,6 +1,6 @@
-#include "poly.h"
-#include "ntt.h"
-#include "fips202.h"
+#include "../include/poly.h"
+#include "../include/ntt.h"
+#include "../include/fips202.h"
 #include <string.h>
 
 // Centered Binomial Distribution (CBD)

@@ -1,4 +1,4 @@
-#include "dilithium_ntt.h"
+#include "../include/dilithium_ntt.h"
 
 // Montgomery constants for q = 8380417
 // QINV = -q^-1 mod 2^32

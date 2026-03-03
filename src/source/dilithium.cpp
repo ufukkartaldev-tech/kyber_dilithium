@@ -1,6 +1,6 @@
-#include "dilithium.h"
-#include "dilithium_ntt.h"
-#include "fips202.h"
+#include "../include/dilithium.h"
+#include "../include/dilithium_ntt.h"
+#include "../include/fips202.h"
 #include <string.h>
 
 namespace PQC {

@@ -1,4 +1,4 @@
-#include "ntt.h"
+#include "../include/ntt.h"
 #include <stdint.h>
 
 // Kyber için önceden hesaplanmış zeta (roots of unity) değerleri

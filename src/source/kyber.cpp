@@ -1,6 +1,6 @@
-#include "kyber.h"
-#include "poly.h"
-#include "fips202.h"
+#include "../include/kyber.h"
+#include "../include/poly.h"
+#include "../include/fips202.h"
 #include <string.h>
 
 // ESP32 Random Generator (Eğer Arduino/ESP-IDF ortamındaysak)

@@ -1,6 +1,6 @@
-#include "kyber_modular.h"
-#include "fips202.h"
-#include "ntt.h"
+#include "../include/kyber_modular.h"
+#include "../include/fips202.h"
+#include "../include/ntt.h"
 #include <string.h>
 
 namespace PQC {

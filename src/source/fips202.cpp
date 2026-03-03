@@ -1,4 +1,4 @@
-#include "fips202.h"
+#include "../include/fips202.h"
 #include <string.h>
 
 #define ROL(a, offset) ((a << offset) | (a >> (64 - offset)))
