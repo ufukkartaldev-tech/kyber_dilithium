@@ -10,6 +10,7 @@
 #include "src/include/dilithium.h"
 #include "src/include/encryption.h"
 #include "src/include/network.h"
+#include "src/include/health.h"
 
 #ifdef ENABLE_PQC_TESTS
   #include "src/tests/test_suite.h"
@@ -20,6 +21,7 @@ using namespace PQC::KEM;
 using namespace PQC::DSA;
 using namespace PQC::Symmetric;
 using namespace PQC::Network;
+using namespace PQC::System;
 
 const uint8_t PEER_MAC[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 
@@ -109,6 +111,7 @@ void test_authenticated_encryption() {
 }
 
 void test_adaptive_authenticated_encryption() {
+    uint32_t start_time = micros();
     Serial.println("\n--- ADAPTIVE PQC HANDSHAKE (KYBER SENSING) ---");
     
     // 1. Link Kalitesini Ölçmek için Prob Gönder
@@ -118,9 +121,6 @@ void test_adaptive_authenticated_encryption() {
     
     bool high_security = (retries == 0); // Hiç hata yoksa 768 kullan
     
-    uint8_t d_pk[DILITHIUM2_PUBLICKEYBYTES];
-    uint8_t d_sk[DILITHIUM2_SECRETKEYBYTES];
-    size_t sig_len;
     const char* msg = "GumusDil Adaptive PQC Packet";
     size_t msg_len = strlen(msg);
     uint8_t encrypted[64], decrypted[64];
@@ -144,6 +144,9 @@ void test_adaptive_authenticated_encryption() {
     
     ChaCha20::process(decrypted, encrypted, msg_len, ss_dec, nonce);
     decrypted[msg_len] = '\0';
+    
+    uint32_t duration = micros() - start_time;
+    HealthMonitor::report_state("Adaptive Multi-Layer PQC", duration);
     Serial.print("SONUC: Cozulen Mesaj: "); Serial.println((char*)decrypted);
 }
 
@@ -200,6 +203,7 @@ void setup() {
     test_dilithium();
     test_authenticated_encryption();
     test_adaptive_authenticated_encryption();
+    HealthMonitor::print_performance_table();
 }
 
 void loop() {
@@ -208,4 +212,5 @@ void loop() {
     test_dilithium();
     test_authenticated_encryption();
     test_adaptive_authenticated_encryption();
+    HealthMonitor::print_performance_table();
 }
