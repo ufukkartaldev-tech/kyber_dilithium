@@ -11,10 +11,10 @@ namespace Test {
 
 // 1. Kyber-512 Kararlılık Testi
 bool TestSuite::test_kyber_kem_vectors() {
-    uint8_t pk[KYBER_512_PUBLICKEYBYTES];
-    uint8_t sk[KYBER_512_SECRETKEYBYTES];
-    uint8_t ct[KYBER_512_CIPHERTEXTBYTES];
-    uint8_t ss1[32], ss2[32];
+    static uint8_t pk[KYBER_512_PUBLICKEYBYTES];
+    static uint8_t sk[KYBER_512_SECRETKEYBYTES];
+    static uint8_t ct[KYBER_512_CIPHERTEXTBYTES];
+    static uint8_t ss1[32], ss2[32];
     for(int i=0; i<10; i++) {
         KEM::Kyber512::keypair(pk, sk);
         KEM::Kyber512::encaps(ct, ss1, pk);
@@ -26,10 +26,10 @@ bool TestSuite::test_kyber_kem_vectors() {
 
 // 2. Implicit Rejection Testi
 bool TestSuite::test_decaps_failure() {
-    uint8_t pk[KYBER_512_PUBLICKEYBYTES];
-    uint8_t sk[KYBER_512_SECRETKEYBYTES];
-    uint8_t ct[KYBER_512_CIPHERTEXTBYTES];
-    uint8_t ss1[32], ss2[32];
+    static uint8_t pk[KYBER_512_PUBLICKEYBYTES];
+    static uint8_t sk[KYBER_512_SECRETKEYBYTES];
+    static uint8_t ct[KYBER_512_CIPHERTEXTBYTES];
+    static uint8_t ss1[32], ss2[32];
     KEM::Kyber512::keypair(pk, sk);
     KEM::Kyber512::encaps(ct, ss1, pk);
     ct[10] ^= 0xFF; 
@@ -39,9 +39,9 @@ bool TestSuite::test_decaps_failure() {
 
 // 3. Rastgelelik (Entropy) Kalite Testi
 bool TestSuite::test_randomness_entropy() {
-    uint8_t pk[KYBER_512_PUBLICKEYBYTES];
-    uint8_t sk[KYBER_512_SECRETKEYBYTES];
-    uint8_t first_bytes[100][8]; 
+    static uint8_t pk[KYBER_512_PUBLICKEYBYTES];
+    static uint8_t sk[KYBER_512_SECRETKEYBYTES];
+    static uint8_t first_bytes[100][8]; 
     for(int i=0; i<100; i++) {
         KEM::Kyber512::keypair(pk, sk);
         memcpy(first_bytes[i], pk, 8);
@@ -54,10 +54,10 @@ bool TestSuite::test_randomness_entropy() {
 
 // 4. Bellek Sızıntısı (Memory Leak) Testi
 bool TestSuite::test_memory_leaks() {
-    uint8_t pk[KYBER_512_PUBLICKEYBYTES];
-    uint8_t sk[KYBER_512_SECRETKEYBYTES];
-    uint8_t ct[KYBER_512_CIPHERTEXTBYTES];
-    uint8_t ss[32];
+    static uint8_t pk[KYBER_512_PUBLICKEYBYTES];
+    static uint8_t sk[KYBER_512_SECRETKEYBYTES];
+    static uint8_t ct[KYBER_512_CIPHERTEXTBYTES];
+    static uint8_t ss[32];
     
     size_t start_heap = ESP.getFreeHeap();
     
@@ -74,10 +74,10 @@ bool TestSuite::test_memory_leaks() {
 
 // 5. Zamanlama Analizi (Timing Consistency) Testi
 bool TestSuite::test_timing_consistency() {
-    uint8_t pk[KYBER_512_PUBLICKEYBYTES];
-    uint8_t sk[KYBER_512_SECRETKEYBYTES];
-    uint8_t ct[KYBER_512_CIPHERTEXTBYTES];
-    uint8_t ss[32];
+    static uint8_t pk[KYBER_512_PUBLICKEYBYTES];
+    static uint8_t sk[KYBER_512_SECRETKEYBYTES];
+    static uint8_t ct[KYBER_512_CIPHERTEXTBYTES];
+    static uint8_t ss[32];
     uint32_t t[10];
     
     KEM::Kyber512::keypair(pk, sk);

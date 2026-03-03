@@ -42,7 +42,7 @@ void test_authenticated_encryption() {
     Serial.println("\n--- KIMLIK DOGRULAMALI SIFRELEME (KYBER + DILITHIUM + CHACHA20) ---");
     
     size_t sig_len;
-    uint8_t encrypted[128], decrypted[128], layer1[128], tag[16];
+    static uint8_t encrypted[128], decrypted[128], layer1[128], tag[16];
     uint8_t nonce[12] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
     const char* original_msg = "GumusDil PQC: Kuantum Guvenli ve Kimlik Dogrulamali Veri Paketi!";
     size_t msg_len = strlen(original_msg);

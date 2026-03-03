@@ -51,7 +51,7 @@ bool Messenger::wait_for_ack() {
 }
 
 bool Messenger::send_reliable(const uint8_t* peer_mac, const uint8_t* data, size_t len) {
-    fragment_packet_t pkt;
+    static fragment_packet_t pkt; // Stack yerine static (RAM tasarrufu)
     uint8_t total = (len + PQC_PAYLOAD_SIZE - 1) / PQC_PAYLOAD_SIZE;
     last_retry_val = 0;
     
@@ -96,7 +96,7 @@ void Messenger::on_data_recv(const uint8_t* mac, const uint8_t* incomingData, in
     
     if (pkt->type == MSG_DATA) {
         // ACK Gönder (Sıranın geldiğini onayla)
-        fragment_packet_t ack_pkt;
+        static fragment_packet_t ack_pkt; // Stack tasarrufu
         ack_pkt.type = MSG_ACK;
         ack_pkt.seq = pkt->seq;
         esp_now_send(mac, (uint8_t*)&ack_pkt, 4); // Sadece başlığı gönder
