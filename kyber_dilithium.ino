@@ -27,7 +27,7 @@ const uint8_t PEER_MAC[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 static uint8_t pk[2048];
 static uint8_t sk[4096];
 static uint8_t sig[DILITHIUM2_SIGNBYTES];
-static uint8_t ct[KYBER_512_CIPHERTEXTBYTES];
+static uint8_t ct[2048]; // Kyber-768 için yeterli
 static uint8_t ss_enc[32], ss_dec[32];
 
 void test_authenticated_encryption() {
@@ -90,6 +90,45 @@ void test_authenticated_encryption() {
     }
 }
 
+void test_adaptive_authenticated_encryption() {
+    Serial.println("\n--- ADAPTIVE PQC HANDSHAKE (KYBER SENSING) ---");
+    
+    // 1. Link Kalitesini Ölçmek için Prob Gönder
+    uint8_t probe = 0xA5;
+    Messenger::send_reliable(PEER_MAC, &probe, 1);
+    int retries = Messenger::get_last_retry_count();
+    
+    bool high_security = (retries == 0); // Hiç hata yoksa 768 kullan
+    
+    uint8_t d_pk[DILITHIUM2_PUBLICKEYBYTES];
+    uint8_t d_sk[DILITHIUM2_SECRETKEYBYTES];
+    size_t sig_len;
+    const char* msg = "GumusDil Adaptive PQC Packet";
+    size_t msg_len = strlen(msg);
+    uint8_t encrypted[64], decrypted[64];
+    uint8_t nonce[12] = {0};
+
+    if (high_security) {
+        Serial.println("SENSING: Baglanti mukemmel. Kyber-768 (High Sec) moduna geciliyor.");
+        Kyber768::keypair(pk, sk);
+        Kyber768::encaps(ct, ss_enc, pk);
+        ChaCha20::process(encrypted, (const uint8_t*)msg, msg_len, ss_enc, nonce);
+        Messenger::send_reliable(PEER_MAC, encrypted, msg_len);
+        Kyber768::decaps(ss_dec, ct, sk);
+    } else {
+        Serial.println("SENSING: Gurultulu kanal! Kyber-512 (Small/Robust) moduna geciliyor.");
+        Kyber512::keypair(pk, sk);
+        Kyber512::encaps(ct, ss_enc, pk);
+        ChaCha20::process(encrypted, (const uint8_t*)msg, msg_len, ss_enc, nonce);
+        Messenger::send_reliable(PEER_MAC, encrypted, msg_len);
+        Kyber512::decaps(ss_dec, ct, sk);
+    }
+    
+    ChaCha20::process(decrypted, encrypted, msg_len, ss_dec, nonce);
+    decrypted[msg_len] = '\0';
+    Serial.print("SONUC: Cozulen Mesaj: "); Serial.println((char*)decrypted);
+}
+
 void test_kyber() {
     uint32_t t0, t1;
     Serial.println("\n--- [MODULAR] KYBER-512 TEST ---");
@@ -142,6 +181,7 @@ void setup() {
     test_kyber();
     test_dilithium();
     test_authenticated_encryption();
+    test_adaptive_authenticated_encryption();
 }
 
 void loop() {
@@ -149,4 +189,5 @@ void loop() {
     test_kyber();
     test_dilithium();
     test_authenticated_encryption();
+    test_adaptive_authenticated_encryption();
 }

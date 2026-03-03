@@ -45,6 +45,9 @@ public:
     static void on_data_sent(const uint8_t* mac, esp_now_send_status_t status);
 #endif
 
+    // Link Kalitesi İzleme
+    static int get_last_retry_count();
+
 private:
     static void format_mac(const uint8_t* mac, char* buf);
     static bool wait_for_ack();

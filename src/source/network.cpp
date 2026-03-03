@@ -14,6 +14,11 @@ static uint8_t RECV_BUFFER[4096]; // Dilithium imzası için geniş yer
 static size_t recv_pos = 0;
 static volatile bool last_send_ok = false;
 static volatile bool ack_received = false;
+static int last_retry_val = 0;
+
+int Messenger::get_last_retry_count() {
+    return last_retry_val;
+}
 
 bool Messenger::init() {
     WiFi.mode(WIFI_STA);
@@ -48,6 +53,7 @@ bool Messenger::wait_for_ack() {
 bool Messenger::send_reliable(const uint8_t* peer_mac, const uint8_t* data, size_t len) {
     fragment_packet_t pkt;
     uint8_t total = (len + PQC_PAYLOAD_SIZE - 1) / PQC_PAYLOAD_SIZE;
+    last_retry_val = 0;
     
     for (uint8_t i = 0; i < total; i++) {
         size_t current_len = (len - (i * PQC_PAYLOAD_SIZE) < PQC_PAYLOAD_SIZE) ? 
@@ -69,6 +75,7 @@ bool Messenger::send_reliable(const uint8_t* peer_mac, const uint8_t* data, size
                 success = true;
             } else {
                 retry++;
+                last_retry_val++;
                 Serial.print("WARN: Paket "); Serial.print(i); Serial.println(" kayboldu, tekrar deneniyor...");
                 delay(50);
             }
