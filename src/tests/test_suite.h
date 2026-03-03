@@ -26,6 +26,9 @@ private:
     static bool test_memory_leaks();
     static bool test_poly_compression_noise();
     static bool test_timing_consistency();
+    static uint32_t test_stack_usage();
+    static void test_power_efficiency();
+    static bool test_multicore_safety();
     static bool test_dilithium_malleability();
     
     // Yardımcılar

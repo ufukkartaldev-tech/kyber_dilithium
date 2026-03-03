@@ -42,7 +42,15 @@ void TestSuite::run_all_tests() {
     log_test("Kyber Timing Consistency", test_timing_consistency());
     log_test("Randomness Entropy (100 Keypairs)", test_randomness_entropy());
     
-    // 3. Dilithium DSA Güvenlik
+    // 3. Sistem ve Kaynak Yönetimi
+    uint32_t stack = test_stack_usage();
+    Serial.print("[SYSTEM] Stack High Water Mark: "); Serial.print(stack); Serial.println(" bytes free");
+    test_power_efficiency();
+    
+    // 4. İleri Düzey Güvenlik (Multicore)
+    log_test("Multicore (Core 0 & 1) Race Condition Test", test_multicore_safety());
+    
+    // 5. Dilithium DSA Güvenlik
     log_test("Dilithium Malleability", test_dilithium_malleability());
     
     Serial.println("--- UNIT TESTLER TAMAMLANDI ---\n");

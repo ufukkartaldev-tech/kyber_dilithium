@@ -94,9 +94,88 @@ bool TestSuite::test_timing_consistency() {
     avg /= 10;
     
     for(int i=0; i<10; i++) {
-        if (abs((long)(t[i] - avg)) > (long)(avg / 5)) return false; // %20 sapma limiti
+        if (abs((long)(t[i] - avg)) > (long)(avg / 5)) return false; 
     }
     return true;
+}
+
+// 6. Stack High Water Mark Testi
+uint32_t TestSuite::test_stack_usage() {
+    uint8_t pk[KYBER_512_PUBLICKEYBYTES];
+    uint8_t sk[KYBER_512_SECRETKEYBYTES];
+    
+    // İşlem öncesi/sırası stack kontrolü
+    KEM::Kyber512::keypair(pk, sk);
+    
+    // uxTaskGetStackHighWaterMark: Kalan minimum stack miktarını (word cinsinden) döner.
+    // ESP32'de stack byte bazında ölçüldüğü için word bazlı sonuç 4 ile çarpılır (genellikle).
+    return uxTaskGetStackHighWaterMark(NULL);
+}
+
+// 7. Güç ve Frekans Verimlilik Testi
+void TestSuite::test_power_efficiency() {
+    uint8_t pk[KYBER_512_PUBLICKEYBYTES];
+    uint8_t sk[KYBER_512_SECRETKEYBYTES];
+    uint8_t ct[KYBER_512_CIPHERTEXTBYTES];
+    uint8_t ss[32];
+    uint32_t freqs[] = {240, 160, 80};
+    
+    Serial.println("\n[EFFICIENCY] Frekans vs Hiz Analizi:");
+    Serial.println("Freq (MHz) | KeyGen (us) | Encaps (us)");
+    Serial.println("-----------|-------------|------------");
+    
+    for(int i=0; i<3; i++) {
+        setCpuFrequencyMhz(freqs[i]);
+        delay(100); // Frekans geçişi için bekle
+        
+        uint32_t t0 = micros();
+        KEM::Kyber512::keypair(pk, sk);
+        uint32_t t_kg = micros() - t0;
+        
+        uint32_t t1 = micros();
+        KEM::Kyber512::encaps(ct, ss, pk);
+        uint32_t t_en = micros() - t1;
+        
+        Serial.print(freqs[i]); Serial.print(" MHz    | ");
+        Serial.print(t_kg); Serial.print("      | ");
+        Serial.println(t_en);
+    }
+    
+    setCpuFrequencyMhz(240); // Test bitince normale dön
+}
+
+// 8. Eşzamanlılık (Multicore/Thread-Safety) Testi
+// Bu test, static bellek kullanımının çift çekirdekteki riskini ölçer.
+volatile bool multicore_failed = false;
+
+static void kyber_task(void *pvParameters) {
+    uint8_t pk[KYBER_512_PUBLICKEYBYTES];
+    uint8_t sk[KYBER_512_SECRETKEYBYTES];
+    uint8_t ss1[32], ss2[32], ct[KYBER_512_CIPHERTEXTBYTES];
+    
+    for(int i=0; i<50; i++) {
+        KEM::Kyber512::keypair(pk, sk);
+        KEM::Kyber512::encaps(ct, ss1, pk);
+        KEM::Kyber512::decaps(ss2, ct, sk);
+        
+        if (memcmp(ss1, ss2, 32) != 0) {
+            multicore_failed = true;
+        }
+    }
+    vTaskDelete(NULL);
+}
+
+bool TestSuite::test_multicore_safety() {
+    multicore_failed = false;
+    
+    // Core 0 ve Core 1 üzerinde aynı anda Kyber işlemlerini başlat
+    xTaskCreatePinnedToCore(kyber_task, "KyberC0", 8192, NULL, 1, NULL, 0);
+    xTaskCreatePinnedToCore(kyber_task, "KyberC1", 8192, NULL, 1, NULL, 1);
+    
+    // Görevlerin bitmesi için yeterli süre bekle
+    delay(2000); 
+    
+    return !multicore_failed;
 }
 
 } // namespace Test
