@@ -32,9 +32,15 @@ static void indcpa_keypair(uint8_t *pk, uint8_t *sk, int k) {
     uint8_t buf[64];
     uint8_t public_seed[32];
     uint8_t noise_seed[32];
-    static polyvec a[4]; // Stack yerine Static (Global) bellek kullanıyoruz
+    static polyvec a[4]; 
     static polyvec skpv, e, pkpv;
     uint8_t nonce = 0;
+
+    // Önemli: Statik bellek kullanıldığı için her seferinde sıfırlanmalıdır.
+    memset(a, 0, sizeof(a));
+    memset(&skpv, 0, sizeof(skpv));
+    memset(&e, 0, sizeof(e));
+    memset(&pkpv, 0, sizeof(pkpv));
 
     GET_RANDOM(buf, 32);
     sha3_512(buf, buf, 32);
@@ -73,6 +79,15 @@ static void indcpa_enc(uint8_t *ct, const uint8_t *msg, const uint8_t *pk, const
     static poly v, k_poly, e2;
     uint8_t public_seed[32];
     uint8_t nonce = 0;
+
+    memset(a, 0, sizeof(a));
+    memset(&pkpv, 0, sizeof(pkpv));
+    memset(&sp, 0, sizeof(sp));
+    memset(&e1, 0, sizeof(e1));
+    memset(&bp, 0, sizeof(bp));
+    memset(&v, 0, sizeof(v));
+    memset(&k_poly, 0, sizeof(k_poly));
+    memset(&e2, 0, sizeof(e2));
 
     for (int i = 0; i < k; i++)
         poly_frombytes(&pkpv.vec[i], pk + i * KYBER_POLYBYTES);
@@ -126,6 +141,10 @@ static void indcpa_dec(uint8_t *msg, const uint8_t *ct, const uint8_t *sk, int k
     polyvec_ntt(&bp, k);
     polyvec_basemul_acc_montgomery(&mp, &skpv, &bp, k);
     poly_invntt_tomont(&mp);
+    
+    // mp şu an R^-1 ölçekli, onu normal domain'e çekiyoruz.
+    poly_tomont(&mp); 
+    poly_reduce(&mp);
 
     poly_sub(&mp, &v, &mp);
     poly_reduce(&mp);
