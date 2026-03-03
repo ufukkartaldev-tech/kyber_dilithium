@@ -37,7 +37,7 @@ int16_t montgomery_reduce(int32_t a) {
 
 // Barrett Reduction: a mod 3329
 // Sayıyı her zaman [0, 3328] arasına hapseder.
-static int16_t barrett_reduce(int16_t a) {
+int16_t barrett_reduce(int16_t a) {
     int32_t t;
     const int16_t v = (1 << 26) / KYBER_Q + 1;
     t = v * a;
