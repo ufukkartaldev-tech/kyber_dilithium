@@ -14,6 +14,7 @@
 #include "src/include/security.h"
 #include "src/include/workspace.h"
 #include "src/include/blackbox.h"
+#include "src/include/storage.h"
 
 #ifdef ENABLE_PQC_TESTS
   #include "src/tests/test_suite.h"
@@ -173,6 +174,25 @@ void test_dilithium() {
     Serial.println("DURUM: DILITHIUM TASLAK HAZIR!");
 }
 
+void test_persistent_vault() {
+    Serial.println("\n--- KEYVAULT (PERSISTENT SECURE STORAGE) TEST ---");
+    
+    uint8_t original_ss[32] = {0x01, 0x02, 0x47, 0x55, 0x4D, 0x55, 0x53, 0}; // 'GUMUS' seed
+    uint8_t reloaded_ss[32] = {0};
+
+    // 1. Kasaya Kilitle (Save)
+    KeyVault::save_key("K_MASTER_SS", original_ss, 32);
+
+    // 2. Kasadan Çıkar (Load)
+    if (KeyVault::load_key("K_MASTER_SS", reloaded_ss, 32)) {
+        if (memcmp(original_ss, reloaded_ss, 32) == 0) {
+            Serial.println("SONUÇ: KeyVault Doğrulandı! Veri şifreli kasadan başarıyla döndü.");
+        } else {
+            Serial.println("SONUÇ: KeyVault HATALI! Veri bütünlüğü bozulmuş.");
+        }
+    }
+}
+
 void setup() {
     Serial.begin(115200);
     delay(2000);
@@ -187,8 +207,11 @@ void setup() {
     BlackBox::init();
     if (BlackBox::has_past_errors()) {
         BlackBox::print_saved_logs();
-        // İsteğe bağlı: BlackBox::clear_logs(); // Okunduktan sonra temizlemek için
     }
+
+    // Gümüşhane Gömme Kasası (KeyVault) Başlat
+    KeyVault::init();
+    test_persistent_vault();
     
     #ifdef ENABLE_PQC_TESTS
       TestSuite::run_all_tests();
