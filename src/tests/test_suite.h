@@ -36,6 +36,7 @@ private:
     static uint32_t test_stack_usage();
     static void test_power_efficiency();
     static bool test_multicore_safety();
+    static bool test_chacha20();
     static bool test_dilithium_malleability();
     
     // Yardımcılar

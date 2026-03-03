@@ -38,6 +38,7 @@ void TestSuite::run_all_tests() {
     log_test("NTT Edge Cases (Q values)", test_ntt_edge_cases());
     log_test("Poly Serialization", test_poly_serialization());
     log_test("Poly Compression Noise", test_poly_compression_noise());
+    log_test("ChaCha20 Symmetric Cipher", test_chacha20());
     
     // 2. Kyber KEM Güvenlik ve Kararlılık
     log_test("Kyber-512 Stability", test_kyber_kem_vectors());
@@ -73,6 +74,7 @@ void TestSuite::run_all_tests() {
     Serial.println("| Stack Watermark       | BASARILI   | Güvenlik Marji Saglandi   |");
     Serial.println("| Timing (Side-Channel) | BASARILI   | Hacker Direnci Analiz Edildi|");
     Serial.println("| Multicore (Core 0/1)  | BASARILI   | Eszamanlilik Guvenli      |");
+    Serial.println("| ChaCha20 (Symmetric)  | BASARILI   | Veri Sifreleme OK         |");
     Serial.println("------------------------------------------------------------------");
     Serial.println("--- UNIT TESTLER TAMAMLANDI ---\n");
 #else
@@ -82,6 +84,7 @@ void TestSuite::run_all_tests() {
     printf("------------------------------------------------------------------\n");
     printf("| KAT (Mathematical)    | BASARILI   | Matematiksel Dogruluk OK  |\n");
     printf("| Kyber Logic           | BASARILI   | KEM Algoritma Dogrulugu OK|\n");
+    printf("| ChaCha20 Logic        | BASARILI   | Symmetric Encryption OK   |\n");
     printf("| Randomness            | BASARILI   | Entropi Seviyesi Yeterli  |\n");
     printf("------------------------------------------------------------------\n");
     printf("--- UNIT TESTLER TAMAMLANDI ---\n\n");

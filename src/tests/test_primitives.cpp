@@ -6,6 +6,7 @@
 #include "../include/fips202.h"
 #include "../include/ntt.h"
 #include "../include/poly.h"
+#include "../include/encryption.h"
 #include <string.h>
 
 namespace PQC {
@@ -86,6 +87,20 @@ bool TestSuite::test_poly_compression_noise() {
         if (diff > 2) return false; 
     }
     return true;
+}
+
+// 6. ChaCha20 Testi
+bool TestSuite::test_chacha20() {
+    uint8_t key[32] = {0};
+    uint8_t nonce[12] = {0};
+    const char* in = "Test Message for ChaCha20";
+    uint8_t out[64], back[64];
+    size_t len = strlen(in);
+    
+    Symmetric::ChaCha20::process(out, (const uint8_t*)in, len, key, nonce);
+    Symmetric::ChaCha20::process(back, out, len, key, nonce);
+    
+    return compare_bytes((const uint8_t*)in, back, len);
 }
 
 } // namespace Test
