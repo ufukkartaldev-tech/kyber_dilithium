@@ -60,7 +60,16 @@ void test_authenticated_encryption() {
     ChaCha20::process(encrypted, (const uint8_t*)original_msg, msg_len, ss_enc, nonce);
     Serial.println("DURUM: Mesaj Kyber (KEM) + ChaCha20 ile sifrelendi.");
     
-    // 4. ALICI TARAFI (Verification & Decryption)
+    // 4. KABLOSUZ GÖNDERİM (Reliable fragmentation)
+    Serial.println("--- KABLOSUZ TRANSFER BASLATILIYOR (Reliable) ---");
+    bool send_success = Messenger::send_reliable(PEER_MAC, encrypted, msg_len);
+    if(send_success) Serial.println("DURUM: Sifreli veri havadan basariyla gonderildi.");
+    
+    // Dilithium imzasını parçalı gönder (Büyük veri testi)
+    send_success &= Messenger::send_reliable(PEER_MAC, sig, sig_len);
+    if(send_success) Serial.println("DURUM: Dilithium Imzasi (2.4KB) parcali olarak gonderildi.");
+
+    // 5. ALICI TARAFI (Verification & Decryption)
     Serial.println("--- ALICI ISLEMLERI ---");
     
     // A. Önce İmza Doğrulaması (Kim bu gönderen?)
