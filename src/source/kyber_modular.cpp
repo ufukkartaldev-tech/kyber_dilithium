@@ -2,6 +2,7 @@
 #include "../include/fips202.h"
 #include "../include/ntt.h"
 #include "../include/workspace.h"
+#include "../include/security.h"
 #include <string.h>
 
 using namespace PQC::Memory;
@@ -29,6 +30,7 @@ void KyberBase::gen_matrix_row(polyvec *a_row, const uint8_t seed[32], int row_i
 
 // Kyber512 Implementation
 int Kyber512::keypair(uint8_t *pk, uint8_t *sk) {
+    Security::SecurityOfficer::check_entropy_lock();
     uint8_t buf[64];
     uint8_t public_seed[32], noise_seed[32];
     polyvec &a_row = workspace.maths.kv1;

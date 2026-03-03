@@ -2,6 +2,7 @@
 #include "../include/dilithium_ntt.h"
 #include "../include/fips202.h"
 #include "../include/workspace.h"
+#include "../include/security.h"
 #include <string.h>
 
 using namespace PQC::Memory;
@@ -75,6 +76,7 @@ void Dilithium2::challenge(poly *c, const uint8_t seed[DILITHIUM_SEEDBYTES]) {
 
 // Key Generation
 int Dilithium2::keypair(uint8_t *pk, uint8_t *sk) {
+    Security::SecurityOfficer::check_entropy_lock();
     uint8_t seedbuf[3 * DILITHIUM_SEEDBYTES];
     uint8_t tr[DILITHIUM_TRBYTES];
     polyvecl &s1 = workspace.maths.dvl;
