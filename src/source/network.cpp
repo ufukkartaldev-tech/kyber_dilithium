@@ -159,17 +159,25 @@ void Messenger::on_data_recv(const uint8_t* mac, const uint8_t* incomingData, in
             return;
         }
 
-        // 2. ANTI-REPLAY KONTROLU
+        // 2. ANTI-REPLAY & SESSION KONTROLU
+        static uint8_t current_session_mac[6] = {0};
+        
         // Gelen msg_id mevcut olanla ayni veya kucukse, bu bir REPLAY SALDIRISI'dir.
         if (pkt->msg_id <= last_received_msg_id && pkt->msg_id != 0) {
             Serial.print("\n[ANTI-REPLAY] Gecersiz Mesaj Kimligi! Gelen: ");
             Serial.print(pkt->msg_id); Serial.print(" Beklenen > "); Serial.println(last_received_msg_id);
-            return; // Paketi imha et
+            return;
         }
         
-        // Yeni mesajin ilk fragmaninda msg_id'yi kaydet
+        // Session Lock: Fragmanlarin karismasini onle
         if (pkt->seq == 0) {
             last_received_msg_id = pkt->msg_id;
+            memcpy(current_session_mac, mac, 6);
+        } else {
+            if (memcmp(current_session_mac, mac, 6) != 0) {
+                Serial.println("\n[SECURITY] Session Collision: Baska bir cihaz transferi bolmeye calisiyor!");
+                return;
+            }
         }
 
         // 3. Kendi paketimiz ise isleme
@@ -177,7 +185,7 @@ void Messenger::on_data_recv(const uint8_t* mac, const uint8_t* incomingData, in
         static fragment_packet_t ack_pkt; 
         ack_pkt.type = MSG_ACK;
         memcpy(ack_pkt.final_dest, pkt->final_dest, 6);
-        ack_pkt.msg_id = pkt->msg_id; // ACK icinde msg_id donelim (opsiyonel)
+        ack_pkt.msg_id = pkt->msg_id; 
         ack_pkt.seq = pkt->seq;
         esp_now_send(mac, (uint8_t*)&ack_pkt, 4 + 6 + 4); // Baslik + MAC + ID size
         

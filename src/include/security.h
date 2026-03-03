@@ -33,6 +33,9 @@ public:
     // İşlemi iki kez yapıp tutarlılığı kontrol eder.
     static bool secure_compare(const uint8_t* a, const uint8_t* b, size_t len);
 
+    // Entropi Kontrolü (Kalitesiz zarla oyun oynanmaz)
+    static void check_entropy_lock();
+
 private:
     static int failed_attempts;
     static const int MAX_ATTEMPTS = 5;

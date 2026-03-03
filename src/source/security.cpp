@@ -1,4 +1,5 @@
 #include "../include/security.h"
+#include "../include/health.h"
 #include <string.h>
 
 #ifdef ARDUINO
@@ -16,15 +17,29 @@ void SecurityOfficer::init() {
     system_locked = false;
 }
 
+void SecurityOfficer::check_entropy_lock() {
+    using PQC::System::HealthMonitor;
+    float quality = HealthMonitor::check_rng_entropy();
+    
+    // Esik deger: %75 (%100 normalize uzerinden 0.75)
+    if (quality < 0.75f) {
+        #ifdef ARDUINO
+        Serial.print("!!! KRITIK GUVENLIK ACIGI: RNG Entropisi cok dusuk: %");
+        Serial.println(quality * 100.0);
+        #endif
+        panic_wipe();
+    }
+}
+
 void SecurityOfficer::report_signature_result(bool success) {
     if (system_locked) return;
 
     if (success) {
-        failed_attempts = 0; // Başarılı girişte sayacı sıfırla
+        failed_attempts = 0; // Basarili giriste sayaci sifirla
     } else {
         failed_attempts++;
         #ifdef ARDUINO
-        Serial.print("!!! GÜVENLİK UYARISI: Yanlış İmza Denemesi "); 
+        Serial.print("!!! GUVENLIK UYARISI: Yanlis Imza Denemesi "); 
         Serial.print(failed_attempts); Serial.print("/"); Serial.println(MAX_ATTEMPTS);
         #endif
         
@@ -42,9 +57,6 @@ void SecurityOfficer::panic_wipe() {
     Serial.println("# TUM ANAHTARLAR BELLEKTEN SILINIYOR...      #");
     Serial.println("#############################################");
     #endif
-    
-    // Not: Gerçek uygulamada burada NVS/Flash bölgeleri de temizlenmelidir.
-    // Bu fonksiyon çağrıldığında üst katman (main sketch) tüm bufferları sıfırlamalıdır.
 }
 
 bool SecurityOfficer::is_system_locked() {
@@ -52,32 +64,26 @@ bool SecurityOfficer::is_system_locked() {
 }
 
 // Constant-Time Comparison (Timing Attack Koruması)
-// Bir baytı kontrol edip hemen 'yanlış' dönmez; tüm baytları tarar.
 bool SecurityOfficer::verify_const_time(const uint8_t* a, const uint8_t* b, size_t len) {
     uint8_t diff = 0;
     for (size_t i = 0; i < len; i++) {
         diff |= (a[i] ^ b[i]);
     }
-    // diff == 0 ise veriler aynıdır.
     return (diff == 0);
 }
 
 // Fault Injection / Glitch Koruması
-// İşlemi iki kez yapar, araya minik bir bekleme (veya dummy op) koyar.
-// Eğer bir saldırgan tek bir anı 'glitch' ile atlatsa bile ikinci kontrol yakalar.
 bool SecurityOfficer::secure_compare(const uint8_t* a, const uint8_t* b, size_t len) {
     bool res1 = verify_const_time(a, b, len);
     
-    // Minik bir dummy döngü (Saldırganın zamanlama tahminini bozar)
     volatile int dummy = 0;
     for(int i=0; i<10; i++) dummy++;
 
     bool res2 = verify_const_time(a, b, len);
 
-    // İki sonuç da aynı olmalı. Eğer biri doğru biri yanlışsa müdahale vardır!
     if (res1 != res2) {
         #ifdef ARDUINO
-        Serial.println("!!! GÜVENLİK İHLALİ: Hata Verdirme (Fault Injection) Algılandı !!!");
+        Serial.println("!!! GUVENLIK IHLALI: Hata Verdirme (Fault Injection) Algilandi !!!");
         #endif
         panic_wipe();
         return false;
