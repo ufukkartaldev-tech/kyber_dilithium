@@ -1,4 +1,4 @@
-#include "../include/test_suite.h"
+#include "test_suite.h"
 #include "../include/fips202.h"
 #include "../include/ntt.h"
 #include "../include/poly.h"

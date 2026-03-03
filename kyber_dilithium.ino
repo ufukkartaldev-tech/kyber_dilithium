@@ -8,7 +8,7 @@
 #include <Arduino.h>
 #include "src/include/kyber_modular.h"
 #include "src/include/dilithium.h"
-#include "src/include/test_suite.h"
+#include "src/tests/test_suite.h"
 
 using namespace PQC::KEM;
 using namespace PQC::DSA;
