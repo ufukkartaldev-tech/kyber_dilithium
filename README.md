@@ -1,36 +1,36 @@
-# GümüşPQC: ESP32 İçin Optimize Edilmiş Kuantum-Ötesi Kriptografi Kütüphanesi
+# GümüşPQC: Optimized Post-Quantum Cryptography Library for ESP32
 
-## Proje Hakkında
-GümüşPQC, ESP32 mikrodenetleyici mimarisi için özel olarak geliştirilmiş, yüksek performanslı ve bellek verimli bir Kuantum-Ötesi Kriptografi (PQC) kütüphanesidir. Sistem, NIST tarafından standartlaştırılan Kyber Anahtar Kapsülleme Mekanizması (KEM) ve Dilithium Dijital İmza Algoritması'nı (DSA) temel alarak, sınırlı kaynaklara sahip gömülü sistemlerde üst düzey güvenlik sağlamayı amaçlamaktadır.
+## Overview
+GümüşPQC is a high-performance, memory-efficient Post-Quantum Cryptography (PQC) library specifically engineered for the ESP32 microcontroller architecture. The system leverages the NIST-standardized Kyber Key Encapsulation Mechanism (KEM) and Dilithium Digital Signature Algorithm (DSA) to provide advanced security for resource-constrained embedded systems.
 
-## Temel Özellikler
-- **Kyber (512/768)**: Kuantum bilgisayar saldırılarına karşı güvenli anahtar değişimi.
-- **Dilithium2**: Fiziksel ve teorik saldırılara dirençli dijital imza doğrulama.
-- **Hibrit Şifreleme**: AES-256-GCM (Donanım Hızlandırmalı) ve ChaCha20 ile çift katmanlı veri güvenliği.
-- **ESP-NOW Entegrasyonu**: Asenkron ve güvenilir veri iletim katmanı.
+## Key Features
+- **Kyber (512/768)**: Secure key exchange resistant to quantum computer attacks.
+- **Dilithium2**: Digital signature verification resilient against physical and theoretical exploits.
+- **Hybrid Encryption**: Double-layer data security using hardware-accelerated AES-256-GCM and ChaCha20.
+- **ESP-NOW Integration**: An asynchronous and reliable wireless communication layer.
 
-## Bellek Optimizasyon Stratejileri
-Sistemin 520 KB RAM sınırları içerisinde stabil çalışabilmesi için ileri düzey bellek yönetim teknikleri uygulanmıştır:
+## Memory Optimization Strategies
+To ensure stable operation within the 520 KB RAM limit of the ESP32, several advanced memory management techniques have been implemented:
 
-1. **SharedWorkspace (Evrensel Paylaşımlı Bellek)**: Kyber ve Dilithium operasyonları için tek bir statik tampon (union) kullanılarak, algoritmalar arası %100 bellek geri dönüşümü sağlanmıştır. Bu sayede statik RAM kullanımı yaklaşık 20 KB azaltılmıştır.
-2. **Bit-Packing (Bit Seviyesinde Paketleme)**: 
-    - Kyber katsayıları 12-bit seviyesinde paketlenerek polinom başına %25 yer tasarrufu sağlanmıştır.
-    - Dilithium katsayıları 24-bit seviyesinde paketlenerek matris alanında %25 verimlilik artışı gerçekleştirilmiştir.
-3. **Flash Offloading (DROM Yerleşimi)**: NTT (Number Theoretic Transform) zeta tabloları ve Keccak sabitleri, `PQC_FLASH_STORAGE` makrosu ile RAM yerine Flash (RODATA) üzerinde depolanarak heap alanı korunmuştur.
-4. **Yalın Yığın (Lean Stack)**: Stack Overflow risklerini bertaraf etmek amacıyla, büyük yerel diziler statik depolama birimlerine taşınmıştır.
+1. **SharedWorkspace (Universal Memory Recycling)**: A unified static buffer (union) is utilized for both Kyber and Dilithium operations, achieving 100% memory reuse between algorithms. This reduces static RAM footprint by approximately 20 KB.
+2. **Bit-Packing (Bit-Level Compression)**: 
+    - Kyber coefficients are packed at a 12-bit level, saving 25% of storage space per polynomial.
+    - Dilithium coefficients are packed at a 24-bit level, resulting in a 25% efficiency gain in matrix storage.
+3. **Flash Offloading (DROM Placement)**: NTT (Number Theoretic Transform) zeta tables and Keccak constants are stored in Flash (RODATA) rather than RAM via the `PQC_FLASH_STORAGE` macro, preserving precious heap space.
+4. **Lean Stack Design**: Large local arrays have been migrated to static storage to eliminate the risk of Stack Overflow during complex cryptographic operations.
 
-## Performans ve Asenkron Mimari
-- **Çift Çekirdek Kullanımı**: ESP-NOW ağ trafiği Pro-Core (Core 0) çekirdeğine, kriptografik işlemler ise App-Core (Core 1) çekirdeğine atanarak paralel işlem kabiliyeti artırılmıştır.
-- **DMA Uyumluluğu**: Ağ iletim tamponları 4-bayt (32-bit) hizalı (aligned) yapılarak donanım seviyesinde DMA (Doğrudan Bellek Erişimi) hızı optimize edilmiştir.
-- **Non-Blocking Yapı**: Veri iletimi asenkron kuyruklar (FreeRTOS Queues) üzerinden yönetilerek işlemci darboğazları önlenmiştir.
+## Performance and Asynchronous Architecture
+- **Dual-Core Offloading**: ESP-NOW network traffic is handled by the Pro-Core (Core 0), while cryptographic computations are executed on the App-Core (Core 1), maximizing parallel processing capability.
+- **DMA Compatibility**: Network transmission buffers are 4-byte (32-bit) aligned to optimize hardware-level Direct Memory Access (DMA) speed.
+- **Non-Blocking Communication**: Data transmission is managed through FreeRTOS Queues, preventing CPU bottlenecks and ensuring system responsiveness.
 
-## Güvenlik Analizi
-- **Constant-Time (Sabit Zamanlı) Algoritmalar**: Veri paketleme ve açma işlemlerinde dallanma (branching) ortadan kaldırılarak zamanlama saldırılarına (timing attacks) karşı tam koruma sağlanmıştır.
-- **Güvenli Temizleme (Secure Wipe)**: Hassas veriler operasyon bitiminde bellekten fiziksel olarak (`memset 0`) silinerek iz bırakılmamaktadır.
-- **Hardware Acceleration**: AES operasyonları ESP32 donanım hızlandırıcısı üzerinden yürütülerek enerji verimliliği ve hız maksimize edilmiştir.
+## Security Analysis
+- **Constant-Time (CT) Algorithms**: Branching logic has been eliminated during data packing and unpacking to provide complete protection against timing side-channel attacks.
+- **Secure Wipe**: Sensitive data is physically erased from memory (`memset 0`) immediately after operation completion to ensure no cryptographic remnants remain.
+- **Hardware Acceleration**: AES operations are offloaded to the ESP32 hardware accelerator, maximizing energy efficiency and execution speed.
 
-## Teknik Özellikler
-| Parametre | Değer |
+## Technical Specifications
+| Parameter | Value |
 |-----------|-------|
 | Target MCU | ESP32 (S3/C3/Plain) |
 | RAM Footprint | ~16 KB (Static) |
@@ -38,11 +38,11 @@ Sistemin 520 KB RAM sınırları içerisinde stabil çalışabilmesi için ileri
 | Networking | ESP-NOW (Reliable Async) |
 | Security Mode | NIST Level 2-3 |
 
-## Proje Yapısı
-- `src/include/`: Başlık dosyaları ve parametre konfigürasyonları.
-- `src/source/`: Algoritma ve haberleşme katmanı implementasyonları.
-- `src/tests/`: Stabilite ve performans test üniteleri.
-- `kyber_dilithium.ino`: Ana uygulama ve entegrasyon örneği.
+## Project Structure
+- `src/include/`: Header files and parameter configurations.
+- `src/source/`: Implementation of algorithms and communication layers.
+- `src/tests/`: Stability and performance testing units.
+- `kyber_dilithium.ino`: Main application and integration example.
 
-## Lisans ve Kullanım
-Bu proje, yüksek güvenlik gereksinimli gömülü sistem projeleri için tasarlanmış açık kaynaklı bir referans uygulamasıdır.
+## License and Usage
+This project is an open-source reference implementation designed for high-security embedded system applications.
