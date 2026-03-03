@@ -176,7 +176,14 @@ void Messenger::on_data_recv(const uint8_t* mac, const uint8_t* incomingData, in
 
         // 2. ANTI-REPLAY & SESSION KONTROLU
         static uint8_t current_session_mac[6] = {0};
+        static uint32_t last_sess_time = 0;
         
+        // Session Timeout: 500ms gectiyse oturumu sifirla (Hacker DoS'u onleme)
+        if (millis() - last_sess_time > 500) {
+            memset(current_session_mac, 0, 6);
+        }
+        last_sess_time = millis();
+
         // Gelen msg_id mevcut olanla ayni veya kucukse, bu bir REPLAY SALDIRISI'dir.
         if (pkt->msg_id <= last_received_msg_id && pkt->msg_id != 0) {
             #ifndef PQC_SILENT_MODE
@@ -193,7 +200,9 @@ void Messenger::on_data_recv(const uint8_t* mac, const uint8_t* incomingData, in
             memcpy(current_session_mac, mac, 6);
         } else {
             if (memcmp(current_session_mac, mac, 6) != 0) {
+                #ifndef PQC_SILENT_MODE
                 Serial.println("\n[SECURITY] Session Collision: Baska bir cihaz transferi bolmeye calisiyor!");
+                #endif
                 return;
             }
         }
@@ -217,8 +226,10 @@ void Messenger::on_data_recv(const uint8_t* mac, const uint8_t* incomingData, in
         }
         
         if (pkt->seq == pkt->total - 1) {
+            #ifndef PQC_SILENT_MODE
             Serial.print("\n[WIRELESS] Buyuk Veri Alindi ("); 
             Serial.print(recv_pos); Serial.println(" bytes)");
+            #endif
         }
     }
 }
