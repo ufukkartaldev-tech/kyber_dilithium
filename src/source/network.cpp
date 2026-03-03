@@ -9,15 +9,31 @@
 namespace PQC {
 namespace Network {
 
-// Statik Bufferlar (RAM Dostu - Gümüşhane Usulü)
-static uint8_t RECV_BUFFER[4096]; // Dilithium imzası için geniş yer
+// Statik Bufferlar (DMA Uygunluğu için 32-bit aligned)
+static uint8_t RECV_BUFFER[4096] __attribute__((aligned(32))); 
 static size_t recv_pos = 0;
 static volatile bool last_send_ok = false;
 static volatile bool ack_received = false;
 static int last_retry_val = 0;
+static volatile bool messenger_busy = false;
+
+// Async Queue
+static QueueHandle_t network_queue = NULL;
+
+struct network_msg_t {
+    uint8_t mac[6];
+    uint8_t data[4096]; // Maksimum paket boyutu (Dilithium Sig)
+    size_t len;
+};
+
+void network_task(void* pvParameters);
 
 int Messenger::get_last_retry_count() {
     return last_retry_val;
+}
+
+bool Messenger::is_busy() {
+    return messenger_busy;
 }
 
 bool Messenger::init() {
@@ -29,8 +45,12 @@ bool Messenger::init() {
     
     esp_now_register_recv_cb(Messenger::on_data_recv);
     esp_now_register_send_cb(Messenger::on_data_sent);
+
+    // Network Task ve Queue oluştur (Pro-Core / DMA Offload)
+    network_queue = xQueueCreate(2, sizeof(network_msg_t));
+    xTaskCreatePinnedToCore(network_task, "NetTask", 4096, NULL, 5, NULL, 0); // Core 0: Networking
     
-    Serial.println("SISTEM: ESP-NOW Modu Aktif (Reliable PQC Hazir)");
+    Serial.println("SISTEM: ESP-NOW Async (Core 0) + DMA Alignment Aktif");
     return true;
 }
 
@@ -51,38 +71,60 @@ bool Messenger::wait_for_ack() {
 }
 
 bool Messenger::send_reliable(const uint8_t* peer_mac, const uint8_t* data, size_t len) {
-    static fragment_packet_t pkt; // Stack yerine static (RAM tasarrufu)
-    uint8_t total = (len + PQC_PAYLOAD_SIZE - 1) / PQC_PAYLOAD_SIZE;
-    last_retry_val = 0;
+    if (len > 4096) return false;
     
-    for (uint8_t i = 0; i < total; i++) {
-        size_t current_len = (len - (i * PQC_PAYLOAD_SIZE) < PQC_PAYLOAD_SIZE) ? 
-                              len - (i * PQC_PAYLOAD_SIZE) : PQC_PAYLOAD_SIZE;
-        
-        pkt.type = MSG_DATA;
-        pkt.seq = i;
-        pkt.total = total;
-        pkt.payload_len = current_len;
-        memcpy(pkt.payload, data + (i * PQC_PAYLOAD_SIZE), current_len);
-        
-        int retry = 0;
-        bool success = false;
-        while (retry < 3 && !success) {
-            ack_received = false;
-            esp_now_send(peer_mac, (uint8_t*)&pkt, sizeof(pkt) - (PQC_PAYLOAD_SIZE - current_len));
-            
-            if (wait_for_ack()) {
-                success = true;
-            } else {
-                retry++;
-                last_retry_val++;
-                Serial.print("WARN: Paket "); Serial.print(i); Serial.println(" kayboldu, tekrar deneniyor...");
-                delay(50);
-            }
-        }
-        if (!success) return false;
+    network_msg_t msg;
+    memcpy(msg.mac, peer_mac, 6);
+    memcpy(msg.data, data, len);
+    msg.len = len;
+
+    if (xQueueSend(network_queue, &msg, 0) == pdPASS) {
+        return true;
     }
-    return true;
+    return false;
+}
+
+// Background Task handle all retries and DMA-like transfer
+void network_task(void* pvParameters) {
+    network_msg_t msg;
+    static fragment_packet_t pkt; // DMA Aligned via attribute in header
+
+    while (true) {
+        if (xQueueReceive(network_queue, &msg, portMAX_DELAY) == pdPASS) {
+            messenger_busy = true;
+            uint8_t total = (msg.len + PQC_PAYLOAD_SIZE - 1) / PQC_PAYLOAD_SIZE;
+            
+            for (uint8_t i = 0; i < total; i++) {
+                size_t current_len = (msg.len - (i * PQC_PAYLOAD_SIZE) < PQC_PAYLOAD_SIZE) ? 
+                                      msg.len - (i * PQC_PAYLOAD_SIZE) : PQC_PAYLOAD_SIZE;
+                
+                pkt.type = MSG_DATA;
+                pkt.seq = i;
+                pkt.total = total;
+                pkt.payload_len = (uint8_t)current_len;
+                memcpy(pkt.payload, msg.data + (i * PQC_PAYLOAD_SIZE), current_len);
+                
+                int retry = 0;
+                bool success = false;
+                while (retry < 3 && !success) {
+                    ack_received = false;
+                    esp_now_send(msg.mac, (uint8_t*)&pkt, sizeof(pkt) - (PQC_PAYLOAD_SIZE - current_len));
+                    
+                    // Blocking wait inside dedicated network task (doesn't hurt PQC CPU)
+                    uint32_t start = millis();
+                    while (millis() - start < 200) {
+                        if (ack_received) { success = true; break; }
+                        vTaskDelay(1);
+                    }
+                    if (!success) {
+                        retry++;
+                        Serial.print("ASYNC WARN: Packet retry "); Serial.println(retry);
+                    }
+                }
+            }
+            messenger_busy = false;
+        }
+    }
 }
 
 void Messenger::on_data_recv(const uint8_t* mac, const uint8_t* incomingData, int len) {

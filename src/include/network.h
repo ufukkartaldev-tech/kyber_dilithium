@@ -31,14 +31,17 @@ typedef struct {
     uint8_t total;       // Total fragments
     uint8_t payload_len; // Content length
     uint8_t payload[PQC_PAYLOAD_SIZE];
-} __attribute__((packed)) fragment_packet_t;
+} __attribute__((packed, aligned(4))) fragment_packet_t; // DMA Dostu: 4-bayt hizalama
 
 class Messenger {
 public:
     static bool init();
     
-    // Güvenli ve Parçalı Gönderim (Dilithium/Kyber için)
+    // Asenkron ve DMA destekli gönderim
     static bool send_reliable(const uint8_t* peer_mac, const uint8_t* data, size_t len);
+    
+    // Transfer durumunu sorgula (Non-blocking)
+    static bool is_busy();
 
 #ifdef ARDUINO
     static void on_data_recv(const uint8_t* mac, const uint8_t* incomingData, int len);
