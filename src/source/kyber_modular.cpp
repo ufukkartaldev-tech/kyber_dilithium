@@ -1,7 +1,10 @@
 #include "../include/kyber_modular.h"
 #include "../include/fips202.h"
 #include "../include/ntt.h"
+#include "../include/workspace.h"
 #include <string.h>
+
+using namespace PQC::Memory;
 
 namespace PQC {
 namespace KEM {
@@ -28,7 +31,10 @@ void KyberBase::gen_matrix_row(polyvec *a_row, const uint8_t seed[32], int row_i
 int Kyber512::keypair(uint8_t *pk, uint8_t *sk) {
     uint8_t buf[64];
     uint8_t public_seed[32], noise_seed[32];
-    static polyvec a_row, skpv, e, pkpv; // Matris A yerine tek satır (RAM Tasarrufu)
+    polyvec &a_row = workspace.maths.kv1;
+    polyvec &skpv = workspace.maths.kv2;
+    polyvec &e = workspace.maths.kv3;
+    polyvec &pkpv = workspace.maths.kv4;
     uint8_t nonce = 0;
 
     memset(&skpv, 0, sizeof(skpv)); memset(&e, 0, sizeof(e)); memset(&pkpv, 0, sizeof(pkpv));
@@ -63,8 +69,14 @@ int Kyber512::keypair(uint8_t *pk, uint8_t *sk) {
 
 int Kyber512::encaps(uint8_t *ct, uint8_t *ss, const uint8_t *pk) {
     uint8_t buf[64], kr[64], msg[32];
-    static polyvec a_row, pkpv, sp, e1, bp;
-    static poly v, k_poly, e2;
+    polyvec &a_row = workspace.maths.kv1;
+    polyvec &pkpv = workspace.maths.kv2;
+    polyvec &sp = workspace.maths.kv3;
+    polyvec &e1 = workspace.maths.kv4;
+    polyvec &bp = workspace.maths.kv5;
+    poly &v = workspace.maths.kp1;
+    poly &k_poly = workspace.maths.kp2;
+    poly &e2 = workspace.maths.kp3;
     uint8_t nonce = 0;
 
     memset(&pkpv, 0, sizeof(pkpv)); memset(&sp, 0, sizeof(sp));
@@ -104,8 +116,10 @@ int Kyber512::encaps(uint8_t *ct, uint8_t *ss, const uint8_t *pk) {
 
 int Kyber512::decaps(uint8_t *ss, const uint8_t *ct, const uint8_t *sk) {
     uint8_t buf[64], kr[64], msg[32];
-    static polyvec bp, skpv;
-    static poly v, mp;
+    polyvec &bp = workspace.maths.kv1;
+    polyvec &skpv = workspace.maths.kv2;
+    poly &v = workspace.maths.kp1;
+    poly &mp = workspace.maths.kp2;
 
     memset(&bp, 0, sizeof(bp)); memset(&skpv, 0, sizeof(skpv)); memset(&v, 0, sizeof(v)); memset(&mp, 0, sizeof(mp));
 
@@ -132,7 +146,10 @@ int Kyber512::decaps(uint8_t *ss, const uint8_t *ct, const uint8_t *sk) {
 int Kyber768::keypair(uint8_t *pk, uint8_t *sk) {
     uint8_t buf[64];
     uint8_t public_seed[32], noise_seed[32];
-    static polyvec a_row, skpv, e, pkpv;
+    polyvec &a_row = workspace.maths.kv1;
+    polyvec &skpv = workspace.maths.kv2;
+    polyvec &e = workspace.maths.kv3;
+    polyvec &pkpv = workspace.maths.kv4;
     uint8_t nonce = 0;
 
     memset(&skpv, 0, sizeof(skpv)); memset(&e, 0, sizeof(e)); memset(&pkpv, 0, sizeof(pkpv));
@@ -166,8 +183,14 @@ int Kyber768::keypair(uint8_t *pk, uint8_t *sk) {
 
 int Kyber768::encaps(uint8_t *ct, uint8_t *ss, const uint8_t *pk) {
     uint8_t buf[64], kr[64], msg[32];
-    static polyvec a_row, pkpv, sp, e1, bp;
-    static poly v, k_poly, e2;
+    polyvec &a_row = workspace.maths.kv1;
+    polyvec &pkpv = workspace.maths.kv2;
+    polyvec &sp = workspace.maths.kv3;
+    polyvec &e1 = workspace.maths.kv4;
+    polyvec &bp = workspace.maths.kv5;
+    poly &v = workspace.maths.kp1;
+    poly &k_poly = workspace.maths.kp2;
+    poly &e2 = workspace.maths.kp3;
     uint8_t nonce = 0;
 
     memset(&pkpv, 0, sizeof(pkpv)); memset(&sp, 0, sizeof(sp));
@@ -206,8 +229,10 @@ int Kyber768::encaps(uint8_t *ct, uint8_t *ss, const uint8_t *pk) {
 
 int Kyber768::decaps(uint8_t *ss, const uint8_t *ct, const uint8_t *sk) {
     uint8_t buf[64], kr[64], msg[32];
-    static polyvec bp, skpv;
-    static poly v, mp;
+    polyvec &bp = workspace.maths.kv1;
+    polyvec &skpv = workspace.maths.kv2;
+    poly &v = workspace.maths.kp1;
+    poly &mp = workspace.maths.kp2;
 
     memset(&bp, 0, sizeof(bp)); memset(&skpv, 0, sizeof(skpv)); memset(&v, 0, sizeof(v)); memset(&mp, 0, sizeof(mp));
 

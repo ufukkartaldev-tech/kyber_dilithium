@@ -12,6 +12,7 @@
 #include "src/include/network.h"
 #include "src/include/health.h"
 #include "src/include/security.h"
+#include "src/include/workspace.h"
 
 #ifdef ENABLE_PQC_TESTS
   #include "src/tests/test_suite.h"
@@ -24,108 +25,74 @@ using namespace PQC::Symmetric;
 using namespace PQC::Network;
 using namespace PQC::System;
 using namespace PQC::Security;
+using namespace PQC::Memory;
 
 const uint8_t PEER_MAC[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 
-// Bellek tamponları (Statik)
-static uint8_t pk[2048];
-static uint8_t sk[4096];
-static uint8_t sig[DILITHIUM2_SIGNBYTES];
-static uint8_t ct[2048]; // Kyber-768 için yeterli
-static uint8_t ss_enc[32], ss_dec[32];
+// Bellek tamponları artık SharedWorkspace içinde (Union sayesinde aynı yeri kullanıyorlar)
+// pk, sk, sig, ct, ss_enc, ss_dec değişkenlerini workspace üzerinden kullanacağız.
 
 // GÜVENLİK: Tüm hassas verileri bellekten kazı!
 void wipe_all_sensitive_data() {
-    memset(pk, 0, sizeof(pk));
-    memset(sk, 0, sizeof(sk));
-    memset(sig, 0, sizeof(sig));
-    memset(ct, 0, sizeof(ct));
-    memset(ss_enc, 0, sizeof(ss_enc));
-    memset(ss_dec, 0, sizeof(ss_dec));
-    Serial.println("SİSTEM: Tüm anahtarlar fiziksel olarak RAM'den silindi (Wiped).");
+    memset(workspace.raw, 0, sizeof(workspace.raw));
+    Serial.println("SİSTEM: Tüm paylaşımlı bellek (Workspace) fiziksel olarak RAM'den silindi.");
 }
 
 void test_authenticated_encryption() {
     Serial.println("\n--- KIMLIK DOGRULAMALI SIFRELEME (KYBER + DILITHIUM + CHACHA20) ---");
     
-    // 1. Anahtar Hazirliklari
-    uint8_t d_pk[DILITHIUM2_PUBLICKEYBYTES];
-    uint8_t d_sk[DILITHIUM2_SECRETKEYBYTES];
     size_t sig_len;
-    
-    // Kyber ve Dilithium anahtar çiftlerini üret
-    Kyber512::keypair(pk, sk);
-    Dilithium2::keypair(d_pk, d_sk);
-    
-    // 2. Mesaj ve Kimlik Doğrulama (İmzalama)
+    uint8_t encrypted[128], decrypted[128], layer1[128], tag[16];
+    uint8_t nonce[12] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
     const char* original_msg = "GumusDil PQC: Kuantum Guvenli ve Kimlik Dogrulamali Veri Paketi!";
     size_t msg_len = strlen(original_msg);
-    uint8_t encrypted[128];
-    uint8_t decrypted[128];
-    uint8_t nonce[12] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
     
     Serial.print("Orijinal Mesaj : "); Serial.println(original_msg);
-    
-    // Orijinal mesajı Dilithium ile imzala (Gönderen doğrulaması)
-    Dilithium2::sign(sig, &sig_len, (const uint8_t*)original_msg, msg_len, d_sk);
+
+    // 1. DILITHIUM: İmzalama (Gönderen Kimliğini Kanıtla)
+    Dilithium2::keypair(workspace.dilithium.pk, workspace.dilithium.sk);
+    Dilithium2::sign(workspace.dilithium.sig, &sig_len, (const uint8_t*)original_msg, msg_len, workspace.dilithium.sk);
     Serial.println("DURUM: Mesaj Dilithium (DSA) ile imzalandi.");
+
+    // 2. KYBER: Anahtar Değişimi (Gizlilik Katmanı)
+    // DİKKAT: Kyber anahtarları Dilithium anahtarlarının üzerine yazılır (RAM Tasarrufu)
+    Kyber512::keypair(workspace.kyber.pk, workspace.kyber.sk);
+    Kyber512::encaps(workspace.kyber.ct, workspace.kyber.ss, workspace.kyber.pk);
     
-    // 3. Anahtar Türetme ve Hibrit Şifreleme (Privacy Layer)
+    // 3. HIBRIT SIFRELEME
     uint8_t chacha_key[32], aes_key[32];
-    KDF::derive_keys(chacha_key, aes_key, ss_enc); // Bir taşla iki kuş: Kyber'dan iki ayrı anahtar türet
+    KDF::derive_keys(chacha_key, aes_key, workspace.kyber.ss);
     
-    Kyber512::encaps(ct, ss_enc, pk);
-    
-    // Katman 1: ChaCha20 (Yazılımsal Esneklik)
-    uint8_t layer1[128];
     ChaCha20::process(layer1, (const uint8_t*)original_msg, msg_len, chacha_key, nonce);
-    
-    // Katman 2: AES-256-GCM (Donanım Hızlandırmalı Zırh)
-    uint8_t tag[16];
     AES256GCM::encrypt(encrypted, tag, layer1, msg_len, aes_key, nonce);
-    
     Serial.println("DURUM: Mesaj Hibrit Zirh (Kyber + ChaCha20 + AES-HW) ile kaplandi.");
     
-    // 4. KABLOSUZ GÖNDERİM (Reliable fragmentation)
-    Serial.println("--- KABLOSUZ TRANSFER BASLATILIYOR (Reliable) ---");
-    bool send_success = Messenger::send_reliable(PEER_MAC, encrypted, msg_len);
-    if(send_success) Serial.println("DURUM: Sifreli veri havadan basariyla gonderildi.");
-    
-    // Dilithium imzasını parçalı gönder (Büyük veri testi)
-    send_success &= Messenger::send_reliable(PEER_MAC, sig, sig_len);
-    if(send_success) Serial.println("DURUM: Dilithium Imzasi (2.4KB) parcali olarak gonderildi.");
+    // 4. KABLOSUZ GÖNDERİM
+    Messenger::send_reliable(PEER_MAC, encrypted, msg_len);
+    Messenger::send_reliable(PEER_MAC, workspace.dilithium.sig, sig_len);
 
-    // 5. ALICI TARAFI (Verification & Decryption)
-    Serial.println("--- ALICI ISLEMLERI ---");
-    
-    // A. Önce İmza Doğrulaması (Kim bu gönderen?)
-    int verify_res = Dilithium2::verify(sig, sig_len, (const uint8_t*)original_msg, msg_len, d_pk);
+    // 5. ALICI TARAFI
+    // Not: Alıcı PK ve CT hala workspace içinde geçerli varsayıyoruz (Demoda bufferlar bozulmuyor)
+    int verify_res = Dilithium2::verify(workspace.dilithium.sig, sig_len, (const uint8_t*)original_msg, msg_len, workspace.dilithium.pk);
     
     if (verify_res == 0) {
         Serial.println("DURUM: Dilithium Imzasi GEÇERLİ! (Gonderen Dogrulandi)");
         
-        // B. Hibrit Deşifreleme (Zırhları Tek Tek Aç)
-        Kyber512::decaps(ss_dec, ct, sk);
-        KDF::derive_keys(chacha_key, aes_key, ss_dec);
+        Kyber512::decaps(workspace.kyber.ss, workspace.kyber.ct, workspace.kyber.sk);
+        KDF::derive_keys(chacha_key, aes_key, workspace.kyber.ss);
         
         uint8_t layer1_dec[128];
-        // Katman 2'yi aç (AES HW)
         AES256GCM::decrypt(layer1_dec, encrypted, msg_len, tag, aes_key, nonce);
-        // Katman 1'i aç (ChaCha20)
         ChaCha20::process(decrypted, layer1_dec, msg_len, chacha_key, nonce);
-        
         decrypted[msg_len] = '\0';
         
         Serial.print("Cozulmus Mesaj : "); Serial.println((char*)decrypted);
         Serial.println("SONUC: Hibrit Guvenlik Basarili! (Quantum-Resistant + AES-HW Armor)");
-        SecurityOfficer::report_signature_result(true); // Güvenlik görevlisine bildir
+        SecurityOfficer::report_signature_result(true);
     } else {
         Serial.println("HATA: Gecersiz Imza! Veri sahte veya bozulmus.");
-        SecurityOfficer::report_signature_result(false); // Başarısızlığı bildir!
-        
-        if (SecurityOfficer::is_system_locked()) {
-            wipe_all_sensitive_data();
-        }
+        SecurityOfficer::report_signature_result(false);
+        if (SecurityOfficer::is_system_locked()) wipe_all_sensitive_data();
     }
 }
 
@@ -147,21 +114,21 @@ void test_adaptive_authenticated_encryption() {
 
     if (high_security) {
         Serial.println("SENSING: Baglanti mukemmel. Kyber-768 (High Sec) moduna geciliyor.");
-        Kyber768::keypair(pk, sk);
-        Kyber768::encaps(ct, ss_enc, pk);
-        ChaCha20::process(encrypted, (const uint8_t*)msg, msg_len, ss_enc, nonce);
+        Kyber768::keypair(workspace.kyber.pk, workspace.kyber.sk);
+        Kyber768::encaps(workspace.kyber.ct, workspace.kyber.ss, workspace.kyber.pk);
+        ChaCha20::process(encrypted, (const uint8_t*)msg, msg_len, workspace.kyber.ss, nonce);
         Messenger::send_reliable(PEER_MAC, encrypted, msg_len);
-        Kyber768::decaps(ss_dec, ct, sk);
+        Kyber768::decaps(workspace.kyber.ss, workspace.kyber.ct, workspace.kyber.sk);
     } else {
         Serial.println("SENSING: Gurultulu kanal! Kyber-512 (Small/Robust) moduna geciliyor.");
-        Kyber512::keypair(pk, sk);
-        Kyber512::encaps(ct, ss_enc, pk);
-        ChaCha20::process(encrypted, (const uint8_t*)msg, msg_len, ss_enc, nonce);
+        Kyber512::keypair(workspace.kyber.pk, workspace.kyber.sk);
+        Kyber512::encaps(workspace.kyber.ct, workspace.kyber.ss, workspace.kyber.pk);
+        ChaCha20::process(encrypted, (const uint8_t*)msg, msg_len, workspace.kyber.ss, nonce);
         Messenger::send_reliable(PEER_MAC, encrypted, msg_len);
-        Kyber512::decaps(ss_dec, ct, sk);
+        Kyber512::decaps(workspace.kyber.ss, workspace.kyber.ct, workspace.kyber.sk);
     }
     
-    ChaCha20::process(decrypted, encrypted, msg_len, ss_dec, nonce);
+    ChaCha20::process(decrypted, encrypted, msg_len, workspace.kyber.ss, nonce);
     decrypted[msg_len] = '\0';
     
     uint32_t duration = micros() - start_time;

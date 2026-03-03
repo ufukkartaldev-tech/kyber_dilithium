@@ -1,7 +1,10 @@
 #include "../include/dilithium.h"
 #include "../include/dilithium_ntt.h"
 #include "../include/fips202.h"
+#include "../include/workspace.h"
 #include <string.h>
+
+using namespace PQC::Memory;
 
 namespace PQC {
 namespace DSA {
@@ -74,8 +77,10 @@ void Dilithium2::challenge(poly *c, const uint8_t seed[DILITHIUM_SEEDBYTES]) {
 int Dilithium2::keypair(uint8_t *pk, uint8_t *sk) {
     uint8_t seedbuf[3 * DILITHIUM_SEEDBYTES];
     uint8_t tr[DILITHIUM_TRBYTES];
-    static polyvecl s1;
-    static polyveck s2, t1, t0;
+    polyvecl &s1 = workspace.maths.dvl;
+    polyveck &s2 = workspace.maths.dvk1;
+    polyveck &t1 = workspace.maths.dvk2;
+    polyveck &t0 = workspace.maths.dvk3;
 
     DSA_RANDOM(seedbuf, DILITHIUM_SEEDBYTES);
     sha3_512(seedbuf, seedbuf, DILITHIUM_SEEDBYTES);
