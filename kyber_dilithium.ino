@@ -13,6 +13,7 @@
 #include "src/include/health.h"
 #include "src/include/security.h"
 #include "src/include/workspace.h"
+#include "src/include/blackbox.h"
 
 #ifdef ENABLE_PQC_TESTS
   #include "src/tests/test_suite.h"
@@ -181,6 +182,13 @@ void setup() {
     
     // Ağ ve ESP-NOW Katmanını başlat
     Messenger::init();
+
+    // Gümüşhane Kara Kutu (BlackBox) Kontrolü
+    BlackBox::init();
+    if (BlackBox::has_past_errors()) {
+        BlackBox::print_saved_logs();
+        // İsteğe bağlı: BlackBox::clear_logs(); // Okunduktan sonra temizlemek için
+    }
     
     #ifdef ENABLE_PQC_TESTS
       TestSuite::run_all_tests();

@@ -6,6 +6,7 @@
 #include "../include/kyber_modular.h"
 #include "../include/dilithium.h"
 #include "../include/health.h"
+#include "../include/blackbox.h"
 #include <string.h>
 
 #ifdef ARDUINO
@@ -19,8 +20,11 @@ void TestSuite::run_stress_test() {
 #ifdef ARDUINO
     Serial.println("\n--- GUMUSHANE STRESS TEST MODE ACTIVATED ---");
     Serial.println("Monitoring RAM integrity and performance for continuous PQC operations...");
+    
+    System::BlackBox::init(); // Initialize Flash Logging (LittleFS)
+    System::BlackBox::print_saved_logs(); // Print any logs from previous failure
 
-    static uint8_t pk_k[3000]; // Max sizes for stability
+    static uint8_t pk_k[3000]; 
     static uint8_t sk_k[4500];
     static uint8_t ct_k[2000];
     static uint8_t ss1[64], ss2[64];
@@ -42,7 +46,8 @@ void TestSuite::run_stress_test() {
         uint32_t dt = micros() - t0;
 
         if (memcmp(ss1, ss2, 32) != 0) {
-            Serial.println("FATAL ERROR: Kyber Integrity Check Failed during Stress Test!");
+            Serial.println("FATAL ERROR: Kyber Integrity Check Failed!");
+            System::BlackBox::log_error("Integrity_Kyber768", op_count, 0);
             while(1);
         }
         System::HealthMonitor::report_state("Stress_Kyber768", dt);
@@ -58,14 +63,12 @@ void TestSuite::run_stress_test() {
 
         op_count++;
 
-        // Memory Integrity Check (Critical: If even 1 byte is lost, halt)
+        // Memory Integrity Check (Critical)
         size_t current_heap = ESP.getFreeHeap();
         if (current_heap < initial_heap) {
-            Serial.print("\n!!! CRITICAL MEMORY LEAK !!!");
-            Serial.print("\nInitial Heap: "); Serial.print(initial_heap);
-            Serial.print("\nCurrent Heap: "); Serial.print(current_heap);
-            Serial.print("\nLeak Amount: "); Serial.print(initial_heap - current_heap);
-            Serial.println("\nHALTING SYSTEM TO PREVENT DATA CORRUPTION.");
+            size_t leak = initial_heap - current_heap;
+            Serial.print("\n!!! CRITICAL MEMORY LEAK: "); Serial.print(leak); Serial.println(" bytes !!!");
+            System::BlackBox::log_error("Memory_Leak_PQC", op_count, leak);
             while(1);
         }
 
