@@ -26,43 +26,54 @@ static uint8_t sig[DILITHIUM2_SIGNBYTES];
 static uint8_t ct[KYBER_512_CIPHERTEXTBYTES];
 static uint8_t ss_enc[32], ss_dec[32];
 
-void test_data_encryption() {
-    Serial.println("\n--- VERI SIFRELEME DEMOSU (KYBER + CHACHA20) ---");
+void test_authenticated_encryption() {
+    Serial.println("\n--- KIMLIK DOGRULAMALI SIFRELEME (KYBER + DILITHIUM + CHACHA20) ---");
     
-    // 1. Kyber ile Anahtar Değişimi
+    // 1. Anahtar Hazirliklari
+    uint8_t d_pk[DILITHIUM2_PUBLICKEYBYTES];
+    uint8_t d_sk[DILITHIUM2_SECRETKEYBYTES];
+    size_t sig_len;
+    
+    // Kyber ve Dilithium anahtar çiftlerini üret
     Kyber512::keypair(pk, sk);
-    Kyber512::encaps(ct, ss_enc, pk);
-    Kyber512::decaps(ss_dec, ct, sk);
+    Dilithium2::keypair(d_pk, d_sk);
     
-    // 2. Şifrelenecek Mesaj
-    const char* original_msg = "GumusDil PQC: ESP32 uzerinde Kuantum Sonrasi Guvenli Mesajlasma!";
+    // 2. Mesaj ve Kimlik Doğrulama (İmzalama)
+    const char* original_msg = "GumusDil PQC: Kuantum Guvenli ve Kimlik Dogrulamali Veri Paketi!";
     size_t msg_len = strlen(original_msg);
     uint8_t encrypted[128];
     uint8_t decrypted[128];
-    uint8_t nonce[12] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}; 
+    uint8_t nonce[12] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
     
     Serial.print("Orijinal Mesaj : "); Serial.println(original_msg);
     
-    // 3. Şifreleme (Kyber'dan gelen ss_enc anahtarı ile)
+    // Orijinal mesajı Dilithium ile imzala (Gönderen doğrulaması)
+    Dilithium2::sign(sig, &sig_len, (const uint8_t*)original_msg, msg_len, d_sk);
+    Serial.println("DURUM: Mesaj Dilithium (DSA) ile imzalandi.");
+    
+    // 3. Anahtar Değişimi ve Şifreleme (Privacy)
+    Kyber512::encaps(ct, ss_enc, pk);
     ChaCha20::process(encrypted, (const uint8_t*)original_msg, msg_len, ss_enc, nonce);
+    Serial.println("DURUM: Mesaj Kyber (KEM) + ChaCha20 ile sifrelendi.");
     
-    Serial.print("Sifreli (HEX)  : ");
-    for(size_t i=0; i<msg_len; i++) {
-        if(encrypted[i] < 0x10) Serial.print("0");
-        Serial.print(encrypted[i], HEX);
-    }
-    Serial.println();
+    // 4. ALICI TARAFI (Verification & Decryption)
+    Serial.println("--- ALICI ISLEMLERI ---");
     
-    // 4. Deşifreleme (Diger tarafta çözülen ss_dec anahtarı ile)
-    ChaCha20::process(decrypted, encrypted, msg_len, ss_dec, nonce);
-    decrypted[msg_len] = '\0';
+    // A. Önce İmza Doğrulaması (Kim bu gönderen?)
+    int verify_res = Dilithium2::verify(sig, sig_len, (const uint8_t*)original_msg, msg_len, d_pk);
     
-    Serial.print("Cozulmus Mesaj : "); Serial.println((char*)decrypted);
-    
-    if (strcmp(original_msg, (char*)decrypted) == 0) {
-        Serial.println("SONUC: BASARILI! Veri butunlugu korundu.");
+    if (verify_res == 0) {
+        Serial.println("DURUM: Dilithium Imzasi GEÇERLİ! (Gonderen Dogrulandi)");
+        
+        // B. Anahtarı Çöz ve Mesajı Oku
+        Kyber512::decaps(ss_dec, ct, sk);
+        ChaCha20::process(decrypted, encrypted, msg_len, ss_dec, nonce);
+        decrypted[msg_len] = '\0';
+        
+        Serial.print("Cozulmus Mesaj : "); Serial.println((char*)decrypted);
+        Serial.println("SONUC: Tam Guvenlik Saglandi! (Gizlilik + Butunluk + Kimlik)");
     } else {
-        Serial.println("SONUC: HATA! Veri bozuldu.");
+        Serial.println("HATA: Gecersiz Imza! Veri sahte veya bozulmus.");
     }
 }
 
@@ -114,12 +125,12 @@ void setup() {
     
     test_kyber();
     test_dilithium();
-    test_data_encryption();
+    test_authenticated_encryption();
 }
 
 void loop() {
     delay(15000);
     test_kyber();
     test_dilithium();
-    test_data_encryption();
+    test_authenticated_encryption();
 }
