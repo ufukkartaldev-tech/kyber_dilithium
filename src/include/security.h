@@ -25,6 +25,14 @@ public:
     // Sistem kilitlendi mi?
     static bool is_system_locked();
 
+    // Sabit Zamanlı Karşılaştırma (Timing Attack Koruması)
+    // Veriler farklı olsa bile her zaman aynı sürede çalışır.
+    static bool verify_const_time(const uint8_t* a, const uint8_t* b, size_t len);
+
+    // Hata Saldırısı Korumalı Karşılaştırma (Fault Injection/Glitch Koruması)
+    // İşlemi iki kez yapıp tutarlılığı kontrol eder.
+    static bool secure_compare(const uint8_t* a, const uint8_t* b, size_t len);
+
 private:
     static int failed_attempts;
     static const int MAX_ATTEMPTS = 5;

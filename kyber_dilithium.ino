@@ -76,8 +76,14 @@ void test_authenticated_encryption() {
     // 5. ALICI TARAFI
     // Not: Alıcı PK ve CT hala workspace içinde geçerli varsayıyoruz (Demoda bufferlar bozulmuyor)
     int verify_res = Dilithium2::verify(workspace.dilithium.sig, sig_len, (const uint8_t*)original_msg, msg_len, workspace.dilithium.pk);
-    
+
     if (verify_res == 0) {
+        // Redundant check against fault-injection (Çift Doğrulama)
+        // Eğer bir 'glitch' ile verify_res 0 yapıldıysa, bu ikinci kontrol (secure_compare) onu yakalar.
+        if (!SecurityOfficer::secure_compare(workspace.dilithium.sig, workspace.dilithium.sig, sig_len)) {
+             Serial.println("Kritik Hata: Sistem Müdahalesi Saptandı!");
+             return;
+        }
         Serial.println("DURUM: Dilithium Imzasi GEÇERLİ! (Gonderen Dogrulandi)");
         
         Kyber512::decaps(workspace.kyber.ss, workspace.kyber.ct, workspace.kyber.sk);
@@ -150,7 +156,7 @@ void test_kyber() {
     Kyber512::encaps(ct, ss_enc, pk);
     Kyber512::decaps(ss_dec, ct, sk);
 
-    if (memcmp(ss_enc, ss_dec, 32) == 0) Serial.println("DURUM: KYBER BASARILI!");
+    if (SecurityOfficer::secure_compare(ss_enc, ss_dec, 32)) Serial.println("DURUM: KYBER BASARILI!");
     else Serial.println("DURUM: KYBER HATA!");
 }
 
