@@ -20,6 +20,19 @@ typedef struct {
     poly vec[DILITHIUM2_L];
 } polyvecl;
 
+// Compact (Packed) Types - RAM Armor
+typedef struct {
+    uint8_t bits[768]; // 256 * 24 bit (3 bytes per coeff) = 768 bytes
+} packed_poly;
+
+typedef struct {
+    packed_poly vec[DILITHIUM2_K];
+} packed_polyveck;
+
+typedef struct {
+    packed_poly vec[DILITHIUM2_L];
+} packed_polyvecl;
+
 class Dilithium2 {
 public:
     // API

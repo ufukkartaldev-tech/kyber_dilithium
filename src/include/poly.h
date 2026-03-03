@@ -9,8 +9,17 @@ typedef struct {
 } poly;
 
 typedef struct {
-    poly vec[KYBER_768_K]; // En büyük K seviyesine göre (static allocation)
+    poly vec[KYBER_768_K]; 
 } polyvec;
+
+// Compact (Packed) Types - RAM Koruyucu
+typedef struct {
+    uint8_t bits[384]; // 256 * 12 bit = 3072 bit = 384 byte
+} packed_poly;
+
+typedef struct {
+    packed_poly vec[KYBER_768_K];
+} packed_polyvec;
 
 void poly_getnoise_eta1(poly *r, const uint8_t seed[32], uint8_t nonce, int k);
 void poly_getnoise_eta2(poly *r, const uint8_t seed[32], uint8_t nonce);
