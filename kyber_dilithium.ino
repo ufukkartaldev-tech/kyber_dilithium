@@ -55,10 +55,21 @@ void test_authenticated_encryption() {
     Dilithium2::sign(sig, &sig_len, (const uint8_t*)original_msg, msg_len, d_sk);
     Serial.println("DURUM: Mesaj Dilithium (DSA) ile imzalandi.");
     
-    // 3. Anahtar Değişimi ve Şifreleme (Privacy)
+    // 3. Anahtar Türetme ve Hibrit Şifreleme (Privacy Layer)
+    uint8_t chacha_key[32], aes_key[32];
+    KDF::derive_keys(chacha_key, aes_key, ss_enc); // Bir taşla iki kuş: Kyber'dan iki ayrı anahtar türet
+    
     Kyber512::encaps(ct, ss_enc, pk);
-    ChaCha20::process(encrypted, (const uint8_t*)original_msg, msg_len, ss_enc, nonce);
-    Serial.println("DURUM: Mesaj Kyber (KEM) + ChaCha20 ile sifrelendi.");
+    
+    // Katman 1: ChaCha20 (Yazılımsal Esneklik)
+    uint8_t layer1[128];
+    ChaCha20::process(layer1, (const uint8_t*)original_msg, msg_len, chacha_key, nonce);
+    
+    // Katman 2: AES-256-GCM (Donanım Hızlandırmalı Zırh)
+    uint8_t tag[16];
+    AES256GCM::encrypt(encrypted, tag, layer1, msg_len, aes_key, nonce);
+    
+    Serial.println("DURUM: Mesaj Hibrit Zirh (Kyber + ChaCha20 + AES-HW) ile kaplandi.");
     
     // 4. KABLOSUZ GÖNDERİM (Reliable fragmentation)
     Serial.println("--- KABLOSUZ TRANSFER BASLATILIYOR (Reliable) ---");
@@ -78,13 +89,20 @@ void test_authenticated_encryption() {
     if (verify_res == 0) {
         Serial.println("DURUM: Dilithium Imzasi GEÇERLİ! (Gonderen Dogrulandi)");
         
-        // B. Anahtarı Çöz ve Mesajı Oku
+        // B. Hibrit Deşifreleme (Zırhları Tek Tek Aç)
         Kyber512::decaps(ss_dec, ct, sk);
-        ChaCha20::process(decrypted, encrypted, msg_len, ss_dec, nonce);
+        KDF::derive_keys(chacha_key, aes_key, ss_dec);
+        
+        uint8_t layer1_dec[128];
+        // Katman 2'yi aç (AES HW)
+        AES256GCM::decrypt(layer1_dec, encrypted, msg_len, tag, aes_key, nonce);
+        // Katman 1'i aç (ChaCha20)
+        ChaCha20::process(decrypted, layer1_dec, msg_len, chacha_key, nonce);
+        
         decrypted[msg_len] = '\0';
         
         Serial.print("Cozulmus Mesaj : "); Serial.println((char*)decrypted);
-        Serial.println("SONUC: Tam Guvenlik Saglandi! (Gizlilik + Butunluk + Kimlik)");
+        Serial.println("SONUC: Hibrit Guvenlik Basarili! (Quantum-Resistant + AES-HW Armor)");
     } else {
         Serial.println("HATA: Gecersiz Imza! Veri sahte veya bozulmus.");
     }

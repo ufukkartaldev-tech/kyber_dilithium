@@ -1,5 +1,10 @@
-#include "../include/encryption.h"
 #include <string.h>
+#include "../include/encryption.h"
+#include "../include/fips202.h"
+
+#ifdef ARDUINO
+#include "mbedtls/gcm.h"
+#endif
 
 namespace PQC {
 namespace Symmetric {
@@ -76,6 +81,48 @@ void ChaCha20::process(uint8_t* out, const uint8_t* in, size_t len,
         in_pos += block_len;
         state[12]++; // Increment counter
     }
+}
+
+// AES-256-GCM Implementation (Hardware Accelerated via mbedTLS on ESP32)
+int AES256GCM::encrypt(uint8_t* out, uint8_t tag[16], const uint8_t* in, size_t len,
+                       const uint8_t key[32], const uint8_t iv[12], const uint8_t* aad, size_t aad_len) {
+#ifdef ARDUINO
+    mbedtls_gcm_context ctx;
+    mbedtls_gcm_init(&ctx);
+    mbedtls_gcm_setkey(&ctx, MBEDTLS_CIPHER_ID_AES, key, 256);
+    int res = mbedtls_gcm_crypt_and_tag(&ctx, MBEDTLS_GCM_ENCRYPT, len, iv, 12, aad, aad_len, in, out, 16, tag);
+    mbedtls_gcm_free(&ctx);
+    return res;
+#else
+    // PC Simülasyonu için basit bir XOR (Sadece test akışını bozmamak için)
+    for(size_t i=0; i<len; i++) out[i] = in[i] ^ key[i % 32];
+    memset(tag, 0xEE, 16);
+    return 0;
+#endif
+}
+
+int AES256GCM::decrypt(uint8_t* out, const uint8_t* in, size_t len, const uint8_t tag[16],
+                       const uint8_t key[32], const uint8_t iv[12], const uint8_t* aad, size_t aad_len) {
+#ifdef ARDUINO
+    mbedtls_gcm_context ctx;
+    mbedtls_gcm_init(&ctx);
+    mbedtls_gcm_setkey(&ctx, MBEDTLS_CIPHER_ID_AES, key, 256);
+    int res = mbedtls_gcm_auth_decrypt(&ctx, len, iv, 12, aad, aad_len, tag, 16, in, out);
+    mbedtls_gcm_free(&ctx);
+    return res;
+#else
+    for(size_t i=0; i<len; i++) out[i] = in[i] ^ key[i % 32];
+    return 0;
+#endif
+}
+
+// 2-Katmanlı Anahtar Türetme (KDF)
+// SHA3-512 kullanarak 32 baytlık shared secret'tan 64 bayt entropi üretiriz.
+void KDF::derive_keys(uint8_t chacha_key[32], uint8_t aes_key[32], const uint8_t shared_secret[32]) {
+    uint8_t output[64];
+    sha3_512(output, shared_secret, 32); // Shared secret'tan 512-bit (64 bayt) türet
+    memcpy(chacha_key, output, 32);      // İlk 32 bayt ChaCha için
+    memcpy(aes_key, output + 32, 32);    // Kalan 32 bayt AES için
 }
 
 } // namespace Symmetric
