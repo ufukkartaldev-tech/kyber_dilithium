@@ -23,6 +23,9 @@ private:
     static bool test_decaps_failure();
     static bool test_ntt_edge_cases();
     static bool test_randomness_entropy();
+    static bool test_memory_leaks();
+    static bool test_poly_compression_noise();
+    static bool test_timing_consistency();
     static bool test_dilithium_malleability();
     
     // Yardımcılar

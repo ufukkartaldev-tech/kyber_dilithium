@@ -52,6 +52,53 @@ bool TestSuite::test_randomness_entropy() {
     return true;
 }
 
+// 4. Bellek Sızıntısı (Memory Leak) Testi
+bool TestSuite::test_memory_leaks() {
+    uint8_t pk[KYBER_512_PUBLICKEYBYTES];
+    uint8_t sk[KYBER_512_SECRETKEYBYTES];
+    uint8_t ct[KYBER_512_CIPHERTEXTBYTES];
+    uint8_t ss[32];
+    
+    size_t start_heap = ESP.getFreeHeap();
+    
+    // 100 döngü (ESP32'de 1000 döngü çok vakit alabilir, 100 sızıntı tespiti için yeterli)
+    for(int i=0; i<100; i++) {
+        KEM::Kyber512::keypair(pk, sk);
+        KEM::Kyber512::encaps(ct, ss, pk);
+        KEM::Kyber512::decaps(ss, ct, sk);
+    }
+    
+    size_t end_heap = ESP.getFreeHeap();
+    return (start_heap == end_heap);
+}
+
+// 5. Zamanlama Analizi (Timing Consistency) Testi
+bool TestSuite::test_timing_consistency() {
+    uint8_t pk[KYBER_512_PUBLICKEYBYTES];
+    uint8_t sk[KYBER_512_SECRETKEYBYTES];
+    uint8_t ct[KYBER_512_CIPHERTEXTBYTES];
+    uint8_t ss[32];
+    uint32_t t[10];
+    
+    KEM::Kyber512::keypair(pk, sk);
+    
+    for(int i=0; i<10; i++) {
+        uint32_t t0 = micros();
+        KEM::Kyber512::encaps(ct, ss, pk);
+        t[i] = micros() - t0;
+    }
+    
+    // Basit bir varyans kontrolü (Çok büyük sapma olmamalı)
+    uint32_t avg = 0;
+    for(int i=0; i<10; i++) avg += t[i];
+    avg /= 10;
+    
+    for(int i=0; i<10; i++) {
+        if (abs((long)(t[i] - avg)) > (long)(avg / 5)) return false; // %20 sapma limiti
+    }
+    return true;
+}
+
 } // namespace Test
 } // namespace PQC
 

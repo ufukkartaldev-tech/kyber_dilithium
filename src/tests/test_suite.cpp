@@ -33,10 +33,13 @@ void TestSuite::run_all_tests() {
     log_test("NTT/InvNTT Symmetry", test_ntt_symmetry());
     log_test("NTT Edge Cases (Q values)", test_ntt_edge_cases());
     log_test("Poly Serialization", test_poly_serialization());
+    log_test("Poly Compression Noise", test_poly_compression_noise());
     
     // 2. Kyber KEM Güvenlik ve Kararlılık
     log_test("Kyber-512 Stability", test_kyber_kem_vectors());
     log_test("Kyber Implicit Rejection", test_decaps_failure());
+    log_test("Kyber Memory Leaks (100 Cycles)", test_memory_leaks());
+    log_test("Kyber Timing Consistency", test_timing_consistency());
     log_test("Randomness Entropy (100 Keypairs)", test_randomness_entropy());
     
     // 3. Dilithium DSA Güvenlik

@@ -65,6 +65,29 @@ bool TestSuite::test_poly_serialization() {
     return true;
 }
 
+// 5. Sıkıştırma ve Hata Payı (Compression & Noise) Testi
+bool TestSuite::test_poly_compression_noise() {
+    poly p, p2;
+    uint8_t buf[320]; // du=10 için 320 byte
+    
+    // Rastgele değerler ata
+    for(int i=0; i<256; i++) p.coeffs[i] = (i * 123) % 3329;
+    
+    // Sıkıştır ve geri aç
+    poly_compress(buf, &p, 10);
+    poly_decompress(&p2, buf, 10);
+    
+    for(int i=0; i<256; i++) {
+        // Kyber katsayı farkı: du=10 için (Q/2^10)/2 ~ 1.6
+        // Yuvarlama hatası 2'den büyük olmamalı.
+        int16_t diff = abs(p.coeffs[i] - p2.coeffs[i]);
+        if(diff > 3329/2) diff = 3329 - diff; // Modüler fark
+        
+        if (diff > 2) return false; 
+    }
+    return true;
+}
+
 } // namespace Test
 } // namespace PQC
 
