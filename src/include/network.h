@@ -28,10 +28,11 @@ enum PacketType { MSG_DATA = 0, MSG_ACK = 1 };
 typedef struct {
     uint8_t type;        // PacketType
     uint8_t final_dest[6]; // Nihai Hedef MAC (Mesh Routing)
+    uint32_t msg_id;     // Benzersiz Mesaj Kimliği (Anti-Replay)
     uint8_t seq;         // Sequence number
     uint8_t total;       // Total fragments
     uint8_t payload_len; // Content length
-    uint8_t payload[PQC_PAYLOAD_SIZE];
+    uint8_t payload[PQC_PAYLOAD_SIZE - 4]; // msg_id için 4 byte düştü.
 } __attribute__((packed, aligned(4))) fragment_packet_t; // DMA: 250 bytes total
 
 class Messenger {

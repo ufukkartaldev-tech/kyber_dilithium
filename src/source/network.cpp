@@ -18,7 +18,11 @@ static int last_retry_val = 0;
 static volatile bool messenger_busy = false;
 
 // Async Queue
+#define PQC_PAYLOAD_SIZE_CLEAN (PQC_PAYLOAD_SIZE - 4)
+
 static QueueHandle_t network_queue = NULL;
+static uint32_t global_msg_id = 1; // Artan mesaj kimliği
+static uint32_t last_received_msg_id = 0; // Anti-Replay takibi (Tek kanal için basitleştirilmiş)
 
 struct network_msg_t {
     uint8_t target_mac[6]; // Şuradaki (Immediate) hedef
@@ -84,6 +88,8 @@ bool Messenger::send_reliable(const uint8_t* peer_mac, const uint8_t* data, size
     memcpy(msg.data, data, len);
     msg.len = len;
 
+    global_msg_id++; // Her yeni mesajda kimliği artır
+
     if (xQueueSend(network_queue, &msg, 0) == pdPASS) {
         return true;
     }
@@ -98,24 +104,25 @@ void network_task(void* pvParameters) {
     while (true) {
         if (xQueueReceive(network_queue, &msg, portMAX_DELAY) == pdPASS) {
             messenger_busy = true;
-            uint8_t total = (msg.len + PQC_PAYLOAD_SIZE - 1) / PQC_PAYLOAD_SIZE;
+            int total = (msg.len + PQC_PAYLOAD_SIZE_CLEAN - 1) / PQC_PAYLOAD_SIZE_CLEAN;
             
             for (uint8_t i = 0; i < total; i++) {
-                size_t current_len = (msg.len - (i * PQC_PAYLOAD_SIZE) < PQC_PAYLOAD_SIZE) ? 
-                                      msg.len - (i * PQC_PAYLOAD_SIZE) : PQC_PAYLOAD_SIZE;
+                size_t current_len = (msg.len - (i * PQC_PAYLOAD_SIZE_CLEAN) < PQC_PAYLOAD_SIZE_CLEAN) ? 
+                                      msg.len - (i * PQC_PAYLOAD_SIZE_CLEAN) : PQC_PAYLOAD_SIZE_CLEAN;
                 
                 pkt.type = MSG_DATA;
-                memcpy(pkt.final_dest, msg.final_mac, 6); // Mesh Header ekle
+                memcpy(pkt.final_dest, msg.final_mac, 6); 
+                pkt.msg_id = global_msg_id;
                 pkt.seq = i;
                 pkt.total = total;
                 pkt.payload_len = (uint8_t)current_len;
-                memcpy(pkt.payload, msg.data + (i * PQC_PAYLOAD_SIZE), current_len);
+                memcpy(pkt.payload, msg.data + (i * PQC_PAYLOAD_SIZE_CLEAN), current_len);
                 
                 int retry = 0;
                 bool success = false;
                 while (retry < 3 && !success) {
                     ack_received = false;
-                    esp_now_send(msg.target_mac, (uint8_t*)&pkt, sizeof(pkt) - (PQC_PAYLOAD_SIZE - current_len));
+                    esp_now_send(msg.target_mac, (uint8_t*)&pkt, sizeof(pkt) - (PQC_PAYLOAD_SIZE_CLEAN - current_len));
                     
                     // Blocking wait inside dedicated network task (doesn't hurt PQC CPU)
                     uint32_t start = millis();
@@ -147,25 +154,37 @@ void Messenger::on_data_recv(const uint8_t* mac, const uint8_t* incomingData, in
         // 1. MESH ROUTING KONTROLÜ
         // Eğer nihai hedef biz değilsek ve yayın yapan da biz değilsek -> RELAY (B-Node)
         if (memcmp(pkt->final_dest, LOCAL_MAC, 6) != 0) {
-            Serial.println("\n[MESH] Packet Relay: Biz durak değiliz, yönlendiriyoruz...");
-            // Basitlik (L2 Mesh): Hedefe doğru (veya bir sonrakine) ilet
-            // Gerçek mesh'te routing table olmalı, burada hedefe direkt iletmeyi deniyoruz (Flooding benzeri)
+            Serial.println("\n[MESH] Packet Relay: Biz durak degiliz, yonlendiriyoruz...");
             esp_now_send(pkt->final_dest, (uint8_t*)pkt, len);
             return;
         }
 
-        // 2. Kendi paketimiz ise işleme (Destination Hub)
-        // ACK Gönder (Sıranın geldiğini onayla)
+        // 2. ANTI-REPLAY KONTROLU
+        // Gelen msg_id mevcut olanla ayni veya kucukse, bu bir REPLAY SALDIRISI'dir.
+        if (pkt->msg_id <= last_received_msg_id && pkt->msg_id != 0) {
+            Serial.print("\n[ANTI-REPLAY] Gecersiz Mesaj Kimligi! Gelen: ");
+            Serial.print(pkt->msg_id); Serial.print(" Beklenen > "); Serial.println(last_received_msg_id);
+            return; // Paketi imha et
+        }
+        
+        // Yeni mesajin ilk fragmaninda msg_id'yi kaydet
+        if (pkt->seq == 0) {
+            last_received_msg_id = pkt->msg_id;
+        }
+
+        // 3. Kendi paketimiz ise isleme
+        // ACK Gonder (Siranin geldigini onayla)
         static fragment_packet_t ack_pkt; 
         ack_pkt.type = MSG_ACK;
         memcpy(ack_pkt.final_dest, pkt->final_dest, 6);
+        ack_pkt.msg_id = pkt->msg_id; // ACK icinde msg_id donelim (opsiyonel)
         ack_pkt.seq = pkt->seq;
-        esp_now_send(mac, (uint8_t*)&ack_pkt, 4 + 6); // Başlık + MAC size
+        esp_now_send(mac, (uint8_t*)&ack_pkt, 4 + 6 + 4); // Baslik + MAC + ID size
         
-        // Birleştirme (Sequence kontrolü)
+        // Birlestirme (Sequence kontrolu)
         if (pkt->seq == 0) recv_pos = 0;
         
-        // Basitlik için sırayla geldiğini varsayıyoruz (Reliable send garantiler)
+        // Basitlik icin sirayla geldigini varsayiyoruz (Reliable send garantiler)
         if (recv_pos + pkt->payload_len <= sizeof(RECV_BUFFER)) {
             memcpy(RECV_BUFFER + recv_pos, pkt->payload, pkt->payload_len);
             recv_pos += pkt->payload_len;
