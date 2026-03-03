@@ -225,6 +225,10 @@ void setup() {
     test_dilithium();
     test_authenticated_encryption();
     test_adaptive_authenticated_encryption();
+    
+    Serial.print("SYSTEM: HW RNG Entropy Quality: "); 
+    Serial.print(HealthMonitor::check_rng_entropy() * 100.0); Serial.println("%");
+    
     HealthMonitor::print_performance_table();
 }
 

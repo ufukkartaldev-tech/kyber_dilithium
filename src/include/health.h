@@ -22,10 +22,14 @@ public:
     // CPU analizi (ESP32 için)
     static float get_cpu_usage();
 
+    // Entropi (RNG) Analizi
+    static float check_rng_entropy(); // [0.0, 1.0] arası kalite puanı
+
     // Raporlama Aracı
     static void print_performance_table();
 
 private:
+    static float calculate_shannon_entropy(const uint8_t* data, size_t len);
     static uint32_t last_idle_time;
     static uint32_t last_report_time;
 };

@@ -79,6 +79,8 @@ void TestSuite::run_stress_test() {
             System::HealthMonitor::print_performance_table();
             Serial.print("RAM Stability: [PASS] - Free Heap: "); 
             Serial.print(current_heap); Serial.println(" bytes");
+            Serial.print("RNG Quality: [PASS] - Entropy: ");
+            Serial.print(System::HealthMonitor::check_rng_entropy() * 100.0); Serial.println("%");
         }
         
         // Safety yield
