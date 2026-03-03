@@ -126,6 +126,23 @@ bool KeyVault::destroy_vault() {
     return false;
 }
 
+bool KeyVault::save_config_uint32(const char* name, uint32_t value) {
+    nvs_handle_t h;
+    if (nvs_open("pqc_sys", NVS_READWRITE, &h) != ESP_OK) return false;
+    nvs_set_u32(h, name, value);
+    nvs_commit(h);
+    nvs_close(h);
+    return true;
+}
+
+bool KeyVault::load_config_uint32(const char* name, uint32_t* value) {
+    nvs_handle_t h;
+    if (nvs_open("pqc_sys", NVS_READONLY, &h) != ESP_OK) return false;
+    esp_err_t err = nvs_get_u32(h, name, value);
+    nvs_close(h);
+    return (err == ESP_OK);
+}
+
 } // namespace System
 } // namespace PQC
 

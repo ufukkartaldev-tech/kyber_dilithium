@@ -25,6 +25,10 @@ public:
     // Kasa Temizliği (Tüm anahtarları sil)
     static bool destroy_vault();
 
+    // Sistem Ayarları (Şifresiz, hızlı NVS erişimi)
+    static bool save_config_uint32(const char* name, uint32_t value);
+    static bool load_config_uint32(const char* name, uint32_t* value);
+
 private:
     static uint8_t master_vault_key[32]; // Kasayı kilitleyen ana anahtar
     static void generate_master_key();   // Cihaza özel master key üret (MAC tabanlı)

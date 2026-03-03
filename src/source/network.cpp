@@ -1,6 +1,7 @@
 #include "../include/network.h"
 #include "../include/encryption.h"
 #include "../include/dilithium.h"
+#include "../include/storage.h"
 #include <string.h>
 
 #ifdef ARDUINO
@@ -54,6 +55,11 @@ bool Messenger::init() {
     
     esp_now_register_recv_cb(Messenger::on_data_recv);
     esp_now_register_send_cb(Messenger::on_data_sent);
+
+    // Persistansdan son ID'leri yukle (Anti-Reset-Replay)
+    using PQC::System::KeyVault;
+    if (!KeyVault::load_config_uint32("tx_msg_id", &global_msg_id)) global_msg_id = 100;
+    if (!KeyVault::load_config_uint32("rx_msg_id", &last_received_msg_id)) last_received_msg_id = 0;
 
     // Network Task ve Queue oluştur (Pro-Core / DMA Offload)
     network_queue = xQueueCreate(2, sizeof(network_msg_t));
@@ -136,6 +142,10 @@ void network_task(void* pvParameters) {
                     }
                 }
             }
+
+            // tx_id'yi yedekle
+            PQC::System::KeyVault::save_config_uint32("tx_msg_id", global_msg_id);
+            
             messenger_busy = false;
         }
     }
@@ -172,6 +182,7 @@ void Messenger::on_data_recv(const uint8_t* mac, const uint8_t* incomingData, in
         // Session Lock: Fragmanlarin karismasini onle
         if (pkt->seq == 0) {
             last_received_msg_id = pkt->msg_id;
+            PQC::System::KeyVault::save_config_uint32("rx_msg_id", last_received_msg_id); // Persist
             memcpy(current_session_mac, mac, 6);
         } else {
             if (memcmp(current_session_mac, mac, 6) != 0) {
