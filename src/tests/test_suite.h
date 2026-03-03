@@ -20,6 +20,7 @@ namespace Test {
 class TestSuite {
 public:
     static void run_all_tests();
+    static void run_stress_test(); // Stress Test Modu (Gümüşhane Dayanıklılık Testi)
 
 private:
     // Ünite Testleri

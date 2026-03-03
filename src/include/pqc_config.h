@@ -19,4 +19,8 @@
 // test kodları derlenmez ve cihaz hafızasında (Flash) yer kaplamaz.
 #define ENABLE_PQC_TESTS
 
+// Stress Test Modu (Süreklilik ve Bellek Sızıntısı Kontrolü)
+// Aktif edildiğinde cihaz durmaksızın PQC operasyonları yapar.
+// #define STRESS_TEST_MODE 
+
 #endif

@@ -182,9 +182,12 @@ void setup() {
     // Ağ ve ESP-NOW Katmanını başlat
     Messenger::init();
     
-    // Uygulama başlamadan önce birim testleri (Unit Tests) çalıştır
     #ifdef ENABLE_PQC_TESTS
       TestSuite::run_all_tests();
+    #endif
+
+    #ifdef STRESS_TEST_MODE
+      TestSuite::run_stress_test(); // Hiç bitmeyen döngüye girer
     #endif
     
     test_kyber();
