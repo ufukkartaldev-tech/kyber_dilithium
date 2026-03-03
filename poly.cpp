@@ -134,11 +134,7 @@ void poly_sub(poly *r, const poly *a, const poly *b) {
 
 void poly_reduce(poly *r) {
     for (int i = 0; i < 256; i++) {
-        // Barrett reduction benzeri hızlı bir katsayı sabitleme
-        int16_t t;
-        const int16_t v = ((1 << 26) + KYBER_Q / 2) / KYBER_Q;
-        t = ((int32_t)v * r->coeffs[i] + (1 << 25)) >> 26;
-        r->coeffs[i] = r->coeffs[i] - t * KYBER_Q;
+        r->coeffs[i] = barrett_reduce(r->coeffs[i]);
     }
 }
 
