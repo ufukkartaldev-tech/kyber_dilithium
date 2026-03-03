@@ -6,10 +6,10 @@
 // ESP32 Random Generator (Eğer Arduino/ESP-IDF ortamındaysak)
 #ifdef ARDUINO
 #include <Arduino.h>
-#define GET_RANDOM(buf, len) for(size_t _i=0; _i<len; _i++) buf[_i] = (uint8_t)esp_random()
+#define GET_RANDOM(ptr, len) do { uint8_t* _p = (uint8_t*)(ptr); for(size_t _i=0; _i<len; _i++) _p[_i] = (uint8_t)esp_random(); } while(0)
 #else
 #include <stdlib.h>
-#define GET_RANDOM(buf, len) for(size_t _i=0; _i<len; _i++) buf[_i] = (uint8_t)rand()
+#define GET_RANDOM(ptr, len) do { uint8_t* _p = (uint8_t*)(ptr); for(size_t _i=0; _i<len; _i++) _p[_i] = (uint8_t)rand(); } while(0)
 #endif
 
 // Yardımcı Fonksiyonlar
