@@ -13,9 +13,12 @@
   ve karmaşık bir matematiksel labirenttir. Bu yüzden geleceğe hazır bir kriptografidir.
 */
 
+#ifndef KYBER_H_DEMO
+#define KYBER_H_DEMO
 #include <Arduino.h>
-#include "src/kyber.h"
-#include "src/params.h"
+#include "kyber.h"
+#include "params.h"
+#endif
 
 // Bellek kullanımını minimize etmek ve dinamik bellekten (malloc) kaçınmak için 
 // tüm tamponları (buffer) global ve statik olarak tanımlıyoruz. 
