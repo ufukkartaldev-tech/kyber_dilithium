@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 #include <Arduino.h>
+#include "../include/pqc_config.h"
+
+#ifdef ENABLE_PQC_TESTS
 
 namespace PQC {
 namespace Test {
@@ -30,4 +33,7 @@ private:
 } // namespace Test
 } // namespace PQC
 
+#endif // ENABLE_PQC_TESTS
+
 #endif
+

@@ -1,4 +1,8 @@
 #include "test_suite.h"
+#include "../include/pqc_config.h"
+
+#ifdef ENABLE_PQC_TESTS
+
 #include "../include/fips202.h"
 #include "../include/ntt.h"
 #include "../include/poly.h"
@@ -9,6 +13,7 @@
 namespace PQC {
 namespace Test {
 
+// ... (Rest of the original implementation)
 void TestSuite::log_test(const char* name, bool result) {
     Serial.print("[TEST] ");
     Serial.print(name);
@@ -74,6 +79,7 @@ bool TestSuite::test_poly_serialization() {
     return true;
 }
 
+// 4. Kyber-512 KEM Döngü Testi (10 Iterasyon)
 bool TestSuite::test_kyber_kem_vectors() {
     uint8_t pk[KYBER_512_PUBLICKEYBYTES];
     uint8_t sk[KYBER_512_SECRETKEYBYTES];
@@ -178,3 +184,6 @@ void TestSuite::run_all_tests() {
 
 } // namespace Test
 } // namespace PQC
+
+#endif
+

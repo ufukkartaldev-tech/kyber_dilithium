@@ -5,14 +5,17 @@
   yapısında (Namespace/Class) ESP32 üzerinde sıfırdan çalıştırır.
 */
 
-#include <Arduino.h>
+#include "src/include/pqc_config.h"
 #include "src/include/kyber_modular.h"
 #include "src/include/dilithium.h"
-#include "src/tests/test_suite.h"
+
+#ifdef ENABLE_PQC_TESTS
+  #include "src/tests/test_suite.h"
+  using namespace PQC::Test;
+#endif
 
 using namespace PQC::KEM;
 using namespace PQC::DSA;
-using namespace PQC::Test;
 
 // Bellek tamponları (Statik)
 static uint8_t pk[2048];
@@ -63,7 +66,9 @@ void setup() {
     Serial.println("\n===== ESP32 POST-QUANTUM SUITE (KYBER & DILITHIUM) =====");
     
     // Uygulama başlamadan önce birim testleri (Unit Tests) çalıştır
-    TestSuite::run_all_tests();
+    #ifdef ENABLE_PQC_TESTS
+      TestSuite::run_all_tests();
+    #endif
     
     test_kyber();
     test_dilithium();
