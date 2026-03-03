@@ -144,7 +144,11 @@ void network_task(void* pvParameters) {
             }
 
             // tx_id'yi yedekle
+            #ifndef PQC_SILENT_MODE
             PQC::System::KeyVault::save_config_uint32("tx_msg_id", global_msg_id);
+            #else
+            PQC::System::KeyVault::save_config_uint32("tx_msg_id", global_msg_id);
+            #endif
             
             messenger_busy = false;
         }
@@ -162,9 +166,10 @@ void Messenger::on_data_recv(const uint8_t* mac, const uint8_t* incomingData, in
     
     if (pkt->type == MSG_DATA) {
         // 1. MESH ROUTING KONTROLÜ
-        // Eğer nihai hedef biz değilsek ve yayın yapan da biz değilsek -> RELAY (B-Node)
         if (memcmp(pkt->final_dest, LOCAL_MAC, 6) != 0) {
+            #ifndef PQC_SILENT_MODE
             Serial.println("\n[MESH] Packet Relay: Biz durak degiliz, yonlendiriyoruz...");
+            #endif
             esp_now_send(pkt->final_dest, (uint8_t*)pkt, len);
             return;
         }
@@ -174,8 +179,10 @@ void Messenger::on_data_recv(const uint8_t* mac, const uint8_t* incomingData, in
         
         // Gelen msg_id mevcut olanla ayni veya kucukse, bu bir REPLAY SALDIRISI'dir.
         if (pkt->msg_id <= last_received_msg_id && pkt->msg_id != 0) {
+            #ifndef PQC_SILENT_MODE
             Serial.print("\n[ANTI-REPLAY] Gecersiz Mesaj Kimligi! Gelen: ");
             Serial.print(pkt->msg_id); Serial.print(" Beklenen > "); Serial.println(last_received_msg_id);
+            #endif
             return;
         }
         

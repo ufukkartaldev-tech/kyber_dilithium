@@ -1,4 +1,5 @@
 #include "../include/health.h"
+#include "../include/pqc_config.h"
 #include <string.h>
 
 #ifdef ARDUINO
@@ -11,16 +12,15 @@ namespace System {
 void HealthMonitor::report_state(const char* operation_name, uint32_t duration_us) {
     size_t free_ram = ESP.getFreeHeap();
     size_t min_ever_ram = ESP.getMinFreeHeap();
-    
+    #ifndef PQC_SILENT_MODE
     Serial.println("\n--- [HEALTH MONITOR] ---");
     Serial.print("Operasyon: "); Serial.println(operation_name);
     Serial.print("Sure     : "); Serial.print(duration_us); Serial.println(" us");
     Serial.print("RAM Bos  : "); Serial.print(free_ram / 1024.0); Serial.println(" KB");
     Serial.print("RAM Min  : "); Serial.print(min_ever_ram / 1024.0); Serial.println(" KB (Sistem Stresi)");
-    
-    // CPU Frekansı
     Serial.print("CPU Freq : "); Serial.print(getCpuFrequencyMhz()); Serial.println(" MHz");
     Serial.println("------------------------");
+    #endif
 }
 
 size_t HealthMonitor::get_free_ram() {
@@ -32,6 +32,7 @@ size_t HealthMonitor::get_min_free_ram() {
 }
 
 void HealthMonitor::print_performance_table() {
+    #ifndef PQC_SILENT_MODE
     Serial.println("\n===== GUMUSDIL PQC SYSTEM REPORT =====");
     Serial.println("| Metric               | Value        | Unit |");
     Serial.println("|----------------------|--------------|------|");
@@ -41,6 +42,7 @@ void HealthMonitor::print_performance_table() {
     Serial.print("| RNG Entropy Quality  | "); Serial.print(check_rng_entropy() * 100.0); Serial.println("         | %    |");
     Serial.print("| System Uptime        | "); Serial.print(millis()/1000); Serial.println("           | sec  |");
     Serial.println("======================================");
+    #endif
 }
 
 // Shannon Entropisi: Rastgelelik Kalite Testi (Gümüshane Usulü Zar Kontrolü)

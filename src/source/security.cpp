@@ -23,7 +23,7 @@ void SecurityOfficer::check_entropy_lock() {
     
     // Esik deger: %75 (%100 normalize uzerinden 0.75)
     if (quality < 0.75f) {
-        #ifdef ARDUINO
+        #if defined(ARDUINO) && !defined(PQC_SILENT_MODE)
         Serial.print("!!! KRITIK GUVENLIK ACIGI: RNG Entropisi cok dusuk: %");
         Serial.println(quality * 100.0);
         #endif
@@ -37,10 +37,12 @@ void SecurityOfficer::report_signature_result(bool success) {
     if (success) {
         failed_attempts = 0; // Basarili giriste sayaci sifirla
     } else {
+        #if defined(ARDUINO) && !defined(PQC_SILENT_MODE)
         failed_attempts++;
-        #ifdef ARDUINO
         Serial.print("!!! GUVENLIK UYARISI: Yanlis Imza Denemesi "); 
         Serial.print(failed_attempts); Serial.print("/"); Serial.println(MAX_ATTEMPTS);
+        #else
+        failed_attempts++;
         #endif
         
         if (failed_attempts >= MAX_ATTEMPTS) {
@@ -51,11 +53,9 @@ void SecurityOfficer::report_signature_result(bool success) {
 
 void SecurityOfficer::panic_wipe() {
     system_locked = true;
-    #ifdef ARDUINO
+    #if defined(ARDUINO) && !defined(PQC_SILENT_MODE)
     Serial.println("\n#############################################");
     Serial.println("# !!! PANIK MODU: GUVENLIK IHLALI TESPITI !!! #");
-    Serial.println("# TUM ANAHTARLAR BELLEKTEN SILINIYOR...      #");
-    Serial.println("#############################################");
     #endif
 }
 
@@ -82,7 +82,7 @@ bool SecurityOfficer::secure_compare(const uint8_t* a, const uint8_t* b, size_t 
     bool res2 = verify_const_time(a, b, len);
 
     if (res1 != res2) {
-        #ifdef ARDUINO
+        #if defined(ARDUINO) && !defined(PQC_SILENT_MODE)
         Serial.println("!!! GUVENLIK IHLALI: Hata Verdirme (Fault Injection) Algilandi !!!");
         #endif
         panic_wipe();

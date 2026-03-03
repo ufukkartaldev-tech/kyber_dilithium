@@ -23,4 +23,9 @@
 // Aktif edildiğinde cihaz durmaksızın PQC operasyonları yapar.
 // #define STRESS_TEST_MODE 
 
+// SILENT MODE (Üretim Modu)
+// Bu makro aktif edilirse Seri port (UART) çıktıları tamamen kapatılır.
+// Bu sayede sistemin ne yaptığı dışarıdan izlenemez (Privacy + Side-Channel Defense).
+// #define PQC_SILENT_MODE 
+
 #endif

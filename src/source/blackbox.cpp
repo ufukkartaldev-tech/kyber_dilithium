@@ -6,52 +6,73 @@
 #include <FS.h>
 #include <LittleFS.h>
 
+#include "../include/encryption.h"
+#include "../include/storage.h"
+
 namespace PQC {
 namespace System {
 
-const char* BlackBox::LOG_PATH = "/GumusLog.txt";
+const char* BlackBox::LOG_PATH = "/GumusLog.bin"; // Uzantiyi bin yaptik
 
 bool BlackBox::init() {
-    // LittleFS'i başlat (FORMAT_LITTLEFS_IF_FAILED parametresi true)
     if (!LittleFS.begin(true)) {
+        #ifndef PQC_SILENT_MODE
         Serial.println("BLACKBOX ERROR: LittleFS initialization failed!");
+        #endif
         return false;
     }
     return true;
 }
 
 void BlackBox::log_error(const char* operation, uint32_t iteration, size_t leak_amount) {
-    File log = LittleFS.open(LOG_PATH, FILE_APPEND);
-    if (!log) {
-        Serial.println("BLACKBOX ERROR: Failed to open log file for writing!");
-        return;
-    }
-
-    log.print("[FATAL ERROR] ");
-    log.print("Operation: "); log.print(operation);
-    log.print(" | Iteration: "); log.print(iteration);
-    log.print(" | Leak: "); log.print(leak_amount);
-    log.println(" bytes");
+    char plain_text[128];
+    snprintf(plain_text, sizeof(plain_text), "[FATAL] Op:%s | It:%u | Leak:%zu", operation, iteration, leak_amount);
     
-    log.close();
-    Serial.println("BLACKBOX: Error successfully written to Flash (Persistent Log).");
+    // Sifreleme hazirlik
+    uint8_t iv[12] = {0}; // Basit IV
+    uint8_t tag[16];
+    uint8_t cipher[128];
+    size_t plain_len = strlen(plain_text);
+    
+    // KeyVault'taki master key ile sifrele
+    // Not: KeyVault::master_vault_key erisimi icin storage.cpp'den yardim aliyoruz
+    // Burada AES motorunu direkt kullanalim.
+    PQC::Symmetric::AES256GCM::encrypt(cipher, tag, (const uint8_t*)plain_text, plain_len, (const uint8_t*)"GUMUS_LOG_ARMOR_32BYTES_REQUIRED", iv);
+
+    File log = LittleFS.open(LOG_PATH, FILE_APPEND);
+    if (log) {
+        log.write(iv, 12);
+        log.write(tag, 16);
+        log.write((uint8_t*)&plain_len, sizeof(size_t));
+        log.write(cipher, plain_len);
+        log.close();
+    }
 }
 
 void BlackBox::print_saved_logs() {
-    if (!LittleFS.exists(LOG_PATH)) {
-        Serial.println("\n[BLACKBOX] No past error logs found. System Clean.");
-        return;
-    }
+    if (!LittleFS.exists(LOG_PATH)) return;
 
-    Serial.println("\n===== BLACKBOX (KARA KUTU) GEÇMİŞ HATALAR =====");
+    #ifndef PQC_SILENT_MODE
+    Serial.println("\n===== BLACKBOX (KARA KUTU) SIFRELI KAYITLAR =====");
     File log = LittleFS.open(LOG_PATH, FILE_READ);
     if (log) {
         while (log.available()) {
-            Serial.write(log.read());
+            uint8_t iv[12], tag[16], cipher[128], plain[128];
+            size_t plain_len;
+            log.read(iv, 12);
+            log.read(tag, 16);
+            log.read((uint8_t*)&plain_len, sizeof(size_t));
+            log.read(cipher, plain_len);
+            
+            if (PQC::Symmetric::AES256GCM::decrypt(plain, cipher, plain_len, tag, (const uint8_t*)"GUMUS_LOG_ARMOR_32BYTES_REQUIRED", iv) == 0) {
+                plain[plain_len] = '\0';
+                Serial.println((char*)plain);
+            }
         }
         log.close();
     }
     Serial.println("==============================================");
+    #endif
 }
 
 void BlackBox::clear_logs() {

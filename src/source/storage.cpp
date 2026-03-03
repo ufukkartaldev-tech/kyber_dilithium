@@ -41,7 +41,9 @@ void KeyVault::generate_master_key() {
             for(int i=0; i<32; i++) secret_salt[i] = (uint8_t)esp_random();
             nvs_set_blob(nvs_handle, "vault_salt", secret_salt, 32);
             nvs_commit(nvs_handle);
+            #ifndef PQC_SILENT_MODE
             Serial.println("KEYVAULT: Yeni Gizli Tuz (Secret Salt) uretildi ve NVS'e gomuldu.");
+            #endif
         }
         nvs_close(nvs_handle);
     } else {
@@ -81,7 +83,9 @@ bool KeyVault::save_key(const char* key_name, const uint8_t* key_data, size_t le
     free(encrypted_blob);
     nvs_close(nvs_handle);
     
+    #ifndef PQC_SILENT_MODE
     if (err == ESP_OK) Serial.printf("KEYVAULT: '%s' başarıyla şifrelendi ve gömme kasaya (NVS) kilitlendi.\n", key_name);
+    #endif
     return (err == ESP_OK);
 }
 
@@ -104,7 +108,9 @@ bool KeyVault::load_key(const char* key_name, uint8_t* out_data, size_t len) {
         int decrypt_res = PQC::Symmetric::AES256GCM::decrypt(out_data, encrypted_blob + 28, len, tag, master_vault_key, iv);
         
         if (decrypt_res != 0) {
+            #ifndef PQC_SILENT_MODE
             Serial.println("KASA HATASI: Anahtar deşifre edilemedi! Doğruluk (Integrity) hatası.");
+            #endif
             err = ESP_FAIL;
         }
     }
@@ -120,7 +126,9 @@ bool KeyVault::destroy_vault() {
         nvs_erase_all(nvs_handle);
         nvs_commit(nvs_handle);
         nvs_close(nvs_handle);
+        #ifndef PQC_SILENT_MODE
         Serial.println("KASA: Tüm kayıtlı anahtarlar imha edildi (Zero-Fill).");
+        #endif
         return true;
     }
     return false;

@@ -37,7 +37,9 @@ const uint8_t PEER_MAC[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 // GÜVENLİK: Tüm hassas verileri bellekten kazı!
 void wipe_all_sensitive_data() {
     memset(workspace.raw, 0, sizeof(workspace.raw));
+    #ifndef PQC_SILENT_MODE
     Serial.println("SİSTEM: Tüm paylaşımlı bellek (Workspace) fiziksel olarak RAM'den silindi.");
+    #endif
 }
 
 void test_authenticated_encryption() {
@@ -200,22 +202,22 @@ void test_persistent_vault() {
 }
 
 void setup() {
+    #ifndef PQC_SILENT_MODE
     Serial.begin(115200);
     delay(2000);
     Serial.println("\n===== ESP32 POST-QUANTUM SUITE (KYBER & DILITHIUM) =====");
+    #endif
     
-    SecurityOfficer::init(); // Güvenlik modülünü başlat
-    
-    // Ağ ve ESP-NOW Katmanını başlat
+    SecurityOfficer::init(); 
     Messenger::init();
 
-    // Gümüşhane Kara Kutu (BlackBox) Kontrolü
     BlackBox::init();
+    #ifndef PQC_SILENT_MODE
     if (BlackBox::has_past_errors()) {
         BlackBox::print_saved_logs();
     }
+    #endif
 
-    // Gümüşhane Gömme Kasası (KeyVault) Başlat
     KeyVault::init();
     test_persistent_vault();
     
@@ -240,7 +242,9 @@ void setup() {
 
 void loop() {
     if (SecurityOfficer::is_system_locked()) {
+        #ifndef PQC_SILENT_MODE
         Serial.println("SİSTEM KİLİTLİ: Güvenlik ihlali sonrası işlem yapılamaz. Reset gerekli.");
+        #endif
         delay(10000);
         return;
     }
@@ -250,5 +254,7 @@ void loop() {
     test_dilithium();
     test_authenticated_encryption();
     test_adaptive_authenticated_encryption();
+    #ifndef PQC_SILENT_MODE
     HealthMonitor::print_performance_table();
+    #endif
 }
