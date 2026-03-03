@@ -1,9 +1,10 @@
 #include "../include/fips202.h"
+#include "../include/pqc_config.h"
 #include <string.h>
 
 #define ROL(a, offset) ((a << offset) | (a >> (64 - offset)))
 
-static const uint64_t KeccakF_RoundConstants[24] = {
+PQC_FLASH_STORAGE static const uint64_t KeccakF_RoundConstants[24] = {
     0x0000000000000001ULL, 0x0000000000008082ULL, 0x800000000000808aULL,
     0x8000000080008000ULL, 0x000000000000808bULL, 0x0000000080000001ULL,
     0x8000000080008081ULL, 0x8000000000008009ULL, 0x000000000000008aULL,

@@ -1,9 +1,10 @@
 #include "../include/ntt.h"
+#include "../include/pqc_config.h"
 #include <stdint.h>
 
 // Kyber için önceden hesaplanmış zeta (roots of unity) değerleri
 // Bu değerler Montgomery alanındadır (scaled by 2^16 mod 3329)
-const int16_t zetas[128] = {
+PQC_FLASH_STORAGE const int16_t zetas[128] = {
     -1044,  -758,  -359, -1517,  1493,  1422,   287,   202,
     -171,   622,  1577,   182,   962, -1202, -1474,  1468,
      573, -1325,   264,   383,  -829,  1458, -1602,  -130,

@@ -1,11 +1,12 @@
 #include "../include/dilithium_ntt.h"
+#include "../include/pqc_config.h"
 
 // Montgomery constants for q = 8380417
 // QINV = -q^-1 mod 2^32
 #define D_QINV 58728449
 #define D_MONT 4194304 // 2^32 mod q
 
-static const int32_t zetas_d[256] = {
+PQC_FLASH_STORAGE static const int32_t zetas_d[256] = {
     0, 25847, 577150, 7180900, 3192015, 786885, 3054131, 2697858,
     4433100, 6891040, 5635338, 5459384, 5323455, 332616, 5204487, 3600901,
     6307399, 5845217, 7255146, 5764022, 6386411, 2049615, 6265747, 3169727,
