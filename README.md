@@ -7,8 +7,14 @@ GümüşPQC is a high-performance, memory-efficient Post-Quantum Cryptography (P
 - **Kyber (512/768)**: Secure key exchange resistant to quantum computer attacks.
 - **Dilithium2**: Digital signature verification resilient against physical and theoretical exploits.
 - **PQC-Mesh Network**: Multi-hop routing and automated relaying (B-Node) layer for distributed communication over ESP-NOW.
+- **KeyVault (Secure Storage)**: Persistent, encrypted storage for PQC keys in ESP32 NVS using hardware-accelerated AES-256-GCM and device-specific keys.
 - **Hybrid Encryption**: Double-layer data security using hardware-accelerated AES-256-GCM and ChaCha20.
 - **Asynchronous Framework**: Dedicated network core (Core 0) to prevent CPU stalls during heavy PQC arithmetic.
+
+## Reliability and Diagnostics
+- **BlackBox (Flash Logging)**: Critical system failures, memory leaks, and integrity errors are persistently logged to Flash (LittleFS) for post-mortem analysis.
+- **Stress Test Mode**: Continuous, high-intensity validation of Kyber/Dilithium operations with 1-byte granularity memory leak detection.
+- **Entropy Guard**: Hardware TRNG (True Random Number Generator) quality is validated using real-time Shannon Entropy calculation (0-100% score).
 
 ## Memory Optimization Strategies
 To ensure stable operation within the 520 KB RAM limit of the ESP32, several advanced memory management techniques have been implemented:
@@ -27,9 +33,10 @@ To ensure stable operation within the 520 KB RAM limit of the ESP32, several adv
 - **Non-Blocking Communication**: Data transmission is managed through FreeRTOS Queues, preventing CPU bottlenecks and ensuring system responsiveness.
 
 ## Security Analysis
-- **Constant-Time (CT) Algorithms**: Branching logic has been eliminated during data packing and unpacking to provide complete protection against timing side-channel attacks.
-- **Secure Wipe**: Sensitive data is physically erased from memory (`memset 0`) immediately after operation completion to ensure no cryptographic remnants remain.
-- **Hardware Acceleration**: AES operations are offloaded to the ESP32 hardware accelerator, maximizing energy efficiency and execution speed.
+- **Side-Channel Protections**: Constant-time (CT) algorithms and comparisons prevent timing-based data leaks during sensitive operations.
+- **Anti-Fault-Injection**: Redundant verification and "double-check" logic protect against hardware glitching and voltage manipulation attacks.
+- **Secure Wipe**: Sensitive data is physically erased from memory (memset 0) immediately after operation completion to ensure no cryptographic remnants remain.
+- **Hardware Acceleration**: AES and SHA operations are offloaded to the ESP32 hardware accelerator, maximizing energy efficiency and side-channel resistance.
 
 ## Technical Specifications
 | Parameter | Value |
