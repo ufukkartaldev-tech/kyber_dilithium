@@ -32,8 +32,8 @@ static void indcpa_keypair(uint8_t *pk, uint8_t *sk, int k) {
     uint8_t buf[64];
     uint8_t public_seed[32];
     uint8_t noise_seed[32];
-    polyvec a[4]; // Matris A (Max k=4 için)
-    polyvec skpv, e, pkpv;
+    static polyvec a[4]; // Stack yerine Static (Global) bellek kullanıyoruz
+    static polyvec skpv, e, pkpv;
     uint8_t nonce = 0;
 
     GET_RANDOM(buf, 32);
@@ -69,8 +69,8 @@ static void indcpa_keypair(uint8_t *pk, uint8_t *sk, int k) {
 
 // IND-CPA Encryption (Temel Şifreleme)
 static void indcpa_enc(uint8_t *ct, const uint8_t *msg, const uint8_t *pk, const uint8_t seed[32], int k) {
-    polyvec a[4], pkpv, sp, e1, bp;
-    poly v, k_poly, e2;
+    static polyvec a[4], pkpv, sp, e1, bp;
+    static poly v, k_poly, e2;
     uint8_t public_seed[32];
     uint8_t nonce = 0;
 
@@ -113,8 +113,8 @@ static void indcpa_enc(uint8_t *ct, const uint8_t *msg, const uint8_t *pk, const
 
 // IND-CPA Decryption (Temel Çözme)
 static void indcpa_dec(uint8_t *msg, const uint8_t *ct, const uint8_t *sk, int k) {
-    polyvec bp, skpv;
-    poly v, mp;
+    static polyvec bp, skpv;
+    static poly v, mp;
 
     for (int i = 0; i < k; i++)
         poly_decompress(&bp.vec[i], ct + i * 320, 10);
