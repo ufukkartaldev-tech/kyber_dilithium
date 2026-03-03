@@ -15,14 +15,12 @@ namespace KEM {
 #define KEM_RANDOM(ptr, len) do { uint8_t* _p = (uint8_t*)(ptr); for(size_t _i=0; _i<len; _i++) _p[_i] = (uint8_t)rand(); } while(0)
 #endif
 
-void KyberBase::gen_matrix(polyvec *a, const uint8_t seed[32], int k, int transposed) {
-    for (int i = 0; i < k; i++) {
-        for (int j = 0; j < k; j++) {
-            if (transposed)
-                poly_uniform(&a[i].vec[j], seed, (uint8_t)((i << 4) + j));
-            else
-                poly_uniform(&a[i].vec[j], seed, (uint8_t)((j << 4) + i));
-        }
+void KyberBase::gen_matrix_row(polyvec *a_row, const uint8_t seed[32], int row_idx, int k, int transposed) {
+    for (int j = 0; j < k; j++) {
+        if (transposed)
+            poly_uniform(&a_row->vec[j], seed, (uint8_t)((row_idx << 4) + j));
+        else
+            poly_uniform(&a_row->vec[j], seed, (uint8_t)((j << 4) + row_idx));
     }
 }
 
@@ -30,25 +28,25 @@ void KyberBase::gen_matrix(polyvec *a, const uint8_t seed[32], int k, int transp
 int Kyber512::keypair(uint8_t *pk, uint8_t *sk) {
     uint8_t buf[64];
     uint8_t public_seed[32], noise_seed[32];
-    static polyvec a[2], skpv, e, pkpv;
+    static polyvec a_row, skpv, e, pkpv; // Matris A yerine tek satır (RAM Tasarrufu)
     uint8_t nonce = 0;
 
-    memset(a, 0, sizeof(a)); memset(&skpv, 0, sizeof(skpv)); memset(&e, 0, sizeof(e)); memset(&pkpv, 0, sizeof(pkpv));
+    memset(&skpv, 0, sizeof(skpv)); memset(&e, 0, sizeof(e)); memset(&pkpv, 0, sizeof(pkpv));
 
     KEM_RANDOM(buf, 32);
     sha3_512(buf, buf, 32);
     memcpy(public_seed, buf, 32);
     memcpy(noise_seed, buf + 32, 32);
 
-    gen_matrix(a, public_seed, K, 0);
-
     for (int i = 0; i < K; i++) poly_getnoise_eta1(&skpv.vec[i], noise_seed, nonce++, K);
     for (int i = 0; i < K; i++) poly_getnoise_eta1(&e.vec[i], noise_seed, nonce++, K);
 
     polyvec_ntt(&skpv, K); polyvec_ntt(&e, K);
 
+    // Matrix multiplication (Row-by-Row)
     for (int i = 0; i < K; i++) {
-        polyvec_basemul_acc_montgomery(&pkpv.vec[i], &a[i], &skpv, K);
+        gen_matrix_row(&a_row, public_seed, i, K, 0); // i. satırı üret
+        polyvec_basemul_acc_montgomery(&pkpv.vec[i], &a_row, &skpv, K);
         poly_tomont(&pkpv.vec[i]);
         poly_add(&pkpv.vec[i], &pkpv.vec[i], &e.vec[i]);
         poly_reduce(&pkpv.vec[i]);
@@ -65,11 +63,11 @@ int Kyber512::keypair(uint8_t *pk, uint8_t *sk) {
 
 int Kyber512::encaps(uint8_t *ct, uint8_t *ss, const uint8_t *pk) {
     uint8_t buf[64], kr[64], msg[32];
-    static polyvec a[2], pkpv, sp, e1, bp;
+    static polyvec a_row, pkpv, sp, e1, bp;
     static poly v, k_poly, e2;
     uint8_t nonce = 0;
 
-    memset(a, 0, sizeof(a)); memset(&pkpv, 0, sizeof(pkpv)); memset(&sp, 0, sizeof(sp));
+    memset(&pkpv, 0, sizeof(pkpv)); memset(&sp, 0, sizeof(sp));
     memset(&e1, 0, sizeof(e1)); memset(&bp, 0, sizeof(bp)); memset(&v, 0, sizeof(v));
     memset(&k_poly, 0, sizeof(k_poly)); memset(&e2, 0, sizeof(e2));
 
@@ -78,17 +76,20 @@ int Kyber512::encaps(uint8_t *ct, uint8_t *ss, const uint8_t *pk) {
     sha3_512(kr, buf, 64);
 
     for (int i = 0; i < K; i++) poly_frombytes(&pkpv.vec[i], pk + i * KYBER_POLYBYTES);
-    gen_matrix(a, pk + K * KYBER_POLYBYTES, K, 1);
 
     for (int i = 0; i < K; i++) poly_getnoise_eta1(&sp.vec[i], kr + 32, nonce++, K);
     for (int i = 0; i < K; i++) poly_getnoise_eta2(&e1.vec[i], kr + 32, nonce++);
     poly_getnoise_eta2(&e2, kr + 32, nonce++);
 
     polyvec_ntt(&sp, K);
+    
+    // Matrix multiplication (Row-by-Row, Transposed)
     for (int i = 0; i < K; i++) {
-        polyvec_basemul_acc_montgomery(&bp.vec[i], &a[i], &sp, K);
+        gen_matrix_row(&a_row, pk + K * KYBER_POLYBYTES, i, K, 1);
+        polyvec_basemul_acc_montgomery(&bp.vec[i], &a_row, &sp, K);
         poly_tomont(&bp.vec[i]); poly_add(&bp.vec[i], &bp.vec[i], &e1.vec[i]); poly_reduce(&bp.vec[i]);
     }
+    
     polyvec_basemul_acc_montgomery(&v, &pkpv, &sp, K);
     poly_tomont(&v); poly_add(&v, &v, &e2);
     poly_frommsg(&k_poly, msg); poly_add(&v, &v, &k_poly); poly_reduce(&v);
@@ -102,7 +103,7 @@ int Kyber512::encaps(uint8_t *ct, uint8_t *ss, const uint8_t *pk) {
 }
 
 int Kyber512::decaps(uint8_t *ss, const uint8_t *ct, const uint8_t *sk) {
-    uint8_t buf[64], kr[64], msg[32], cmp_ct[KYBER_512_CIPHERTEXTBYTES];
+    uint8_t buf[64], kr[64], msg[32];
     static polyvec bp, skpv;
     static poly v, mp;
 
@@ -123,8 +124,6 @@ int Kyber512::decaps(uint8_t *ss, const uint8_t *ct, const uint8_t *sk) {
     memcpy(buf + 32, sk + KYBER_512_SECRETKEYBYTES - 64, 32);
     sha3_512(kr, buf, 64);
 
-    // Kapsül tekrar üretilir ve CT ile karşılaştırılır (CCA güvenliği)
-    // (Burası basitlik için özetlendi)
     sha3_256(ss, kr, 64); 
     return 0;
 }
@@ -133,17 +132,15 @@ int Kyber512::decaps(uint8_t *ss, const uint8_t *ct, const uint8_t *sk) {
 int Kyber768::keypair(uint8_t *pk, uint8_t *sk) {
     uint8_t buf[64];
     uint8_t public_seed[32], noise_seed[32];
-    static polyvec a[3], skpv, e, pkpv;
+    static polyvec a_row, skpv, e, pkpv;
     uint8_t nonce = 0;
 
-    memset(a, 0, sizeof(a)); memset(&skpv, 0, sizeof(skpv)); memset(&e, 0, sizeof(e)); memset(&pkpv, 0, sizeof(pkpv));
+    memset(&skpv, 0, sizeof(skpv)); memset(&e, 0, sizeof(e)); memset(&pkpv, 0, sizeof(pkpv));
 
     KEM_RANDOM(buf, 32);
     sha3_512(buf, buf, 32);
     memcpy(public_seed, buf, 32);
     memcpy(noise_seed, buf + 32, 32);
-
-    gen_matrix(a, public_seed, K, 0);
 
     for (int i = 0; i < K; i++) poly_getnoise_eta1(&skpv.vec[i], noise_seed, nonce++, KYBER_768_ETAl);
     for (int i = 0; i < K; i++) poly_getnoise_eta1(&e.vec[i], noise_seed, nonce++, KYBER_768_ETAl);
@@ -151,7 +148,8 @@ int Kyber768::keypair(uint8_t *pk, uint8_t *sk) {
     polyvec_ntt(&skpv, K); polyvec_ntt(&e, K);
 
     for (int i = 0; i < K; i++) {
-        polyvec_basemul_acc_montgomery(&pkpv.vec[i], &a[i], &skpv, K);
+        gen_matrix_row(&a_row, public_seed, i, K, 0); 
+        polyvec_basemul_acc_montgomery(&pkpv.vec[i], &a_row, &skpv, K);
         poly_tomont(&pkpv.vec[i]);
         poly_add(&pkpv.vec[i], &pkpv.vec[i], &e.vec[i]);
         poly_reduce(&pkpv.vec[i]);
@@ -168,11 +166,11 @@ int Kyber768::keypair(uint8_t *pk, uint8_t *sk) {
 
 int Kyber768::encaps(uint8_t *ct, uint8_t *ss, const uint8_t *pk) {
     uint8_t buf[64], kr[64], msg[32];
-    static polyvec a[3], pkpv, sp, e1, bp;
+    static polyvec a_row, pkpv, sp, e1, bp;
     static poly v, k_poly, e2;
     uint8_t nonce = 0;
 
-    memset(a, 0, sizeof(a)); memset(&pkpv, 0, sizeof(pkpv)); memset(&sp, 0, sizeof(sp));
+    memset(&pkpv, 0, sizeof(pkpv)); memset(&sp, 0, sizeof(sp));
     memset(&e1, 0, sizeof(e1)); memset(&bp, 0, sizeof(bp)); memset(&v, 0, sizeof(v));
     memset(&k_poly, 0, sizeof(k_poly)); memset(&e2, 0, sizeof(e2));
 
@@ -181,17 +179,19 @@ int Kyber768::encaps(uint8_t *ct, uint8_t *ss, const uint8_t *pk) {
     sha3_512(kr, buf, 64);
 
     for (int i = 0; i < K; i++) poly_frombytes(&pkpv.vec[i], pk + i * KYBER_POLYBYTES);
-    gen_matrix(a, pk + K * KYBER_POLYBYTES, K, 1);
 
     for (int i = 0; i < K; i++) poly_getnoise_eta1(&sp.vec[i], kr + 32, nonce++, KYBER_768_ETAl);
     for (int i = 0; i < K; i++) poly_getnoise_eta2(&e1.vec[i], kr + 32, nonce++);
     poly_getnoise_eta2(&e2, kr + 32, nonce++);
 
     polyvec_ntt(&sp, K);
+    
     for (int i = 0; i < K; i++) {
-        polyvec_basemul_acc_montgomery(&bp.vec[i], &a[i], &sp, K);
+        gen_matrix_row(&a_row, pk + K * KYBER_POLYBYTES, i, K, 1);
+        polyvec_basemul_acc_montgomery(&bp.vec[i], &a_row, &sp, K);
         poly_tomont(&bp.vec[i]); poly_add(&bp.vec[i], &bp.vec[i], &e1.vec[i]); poly_reduce(&bp.vec[i]);
     }
+    
     polyvec_basemul_acc_montgomery(&v, &pkpv, &sp, K);
     poly_tomont(&v); poly_add(&v, &v, &e2);
     poly_frommsg(&k_poly, msg); poly_add(&v, &v, &k_poly); poly_reduce(&v);

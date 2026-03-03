@@ -11,8 +11,8 @@ namespace KEM {
 
 class KyberBase {
 protected:
-    // Ortak yardımcı matematik fonksiyonları
-    static void gen_matrix(polyvec *a, const uint8_t seed[32], int k, int transposed);
+    // RAM tasarrufu için matrisi tek seferde değil, satır satır üretiyoruz.
+    static void gen_matrix_row(polyvec *a_row, const uint8_t seed[32], int row_idx, int k, int transposed);
 };
 
 class Kyber512 : public KyberBase {

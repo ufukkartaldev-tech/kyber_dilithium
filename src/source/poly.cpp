@@ -250,12 +250,17 @@ void polyvec_add(polyvec *r, const polyvec *a, const polyvec *b, int k) {
 }
 
 // Matris-Vektör çarpımında kullanılan akumülasyon: r = a * b
+// In-place mantığıyla, geçici 'poly' buffer'ı kullanmadan doğrudan r üzerine ekleme yapar.
 void polyvec_basemul_acc_montgomery(poly *r, const polyvec *a, const polyvec *b, int k) {
-    poly t;
-    poly_basemul_montgomery(r, &a->vec[0], &b->vec[0]);
-    for (int i = 1; i < k; i++) {
-        poly_basemul_montgomery(&t, &a->vec[i], &b->vec[i]);
-        poly_add(r, r, &t);
+    int16_t t[2];
+    memset(r->coeffs, 0, sizeof(r->coeffs));
+    
+    for (int i = 0; i < k; i++) {
+        for (int j = 0; j < 128; j++) {
+            basemul(t, &a->vec[i].coeffs[2 * j], &b->vec[i].coeffs[2 * j], zetas[64 + j]);
+            r->coeffs[2 * j] += t[0];
+            r->coeffs[2 * j + 1] += t[1];
+        }
     }
     poly_reduce(r);
 }
