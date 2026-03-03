@@ -11,6 +11,7 @@
 #include "src/include/encryption.h"
 #include "src/include/network.h"
 #include "src/include/health.h"
+#include "src/include/security.h"
 
 #ifdef ENABLE_PQC_TESTS
   #include "src/tests/test_suite.h"
@@ -22,6 +23,7 @@ using namespace PQC::DSA;
 using namespace PQC::Symmetric;
 using namespace PQC::Network;
 using namespace PQC::System;
+using namespace PQC::Security;
 
 const uint8_t PEER_MAC[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 
@@ -31,6 +33,17 @@ static uint8_t sk[4096];
 static uint8_t sig[DILITHIUM2_SIGNBYTES];
 static uint8_t ct[2048]; // Kyber-768 için yeterli
 static uint8_t ss_enc[32], ss_dec[32];
+
+// GÜVENLİK: Tüm hassas verileri bellekten kazı!
+void wipe_all_sensitive_data() {
+    memset(pk, 0, sizeof(pk));
+    memset(sk, 0, sizeof(sk));
+    memset(sig, 0, sizeof(sig));
+    memset(ct, 0, sizeof(ct));
+    memset(ss_enc, 0, sizeof(ss_enc));
+    memset(ss_dec, 0, sizeof(ss_dec));
+    Serial.println("SİSTEM: Tüm anahtarlar fiziksel olarak RAM'den silindi (Wiped).");
+}
 
 void test_authenticated_encryption() {
     Serial.println("\n--- KIMLIK DOGRULAMALI SIFRELEME (KYBER + DILITHIUM + CHACHA20) ---");
@@ -105,8 +118,14 @@ void test_authenticated_encryption() {
         
         Serial.print("Cozulmus Mesaj : "); Serial.println((char*)decrypted);
         Serial.println("SONUC: Hibrit Guvenlik Basarili! (Quantum-Resistant + AES-HW Armor)");
+        SecurityOfficer::report_signature_result(true); // Güvenlik görevlisine bildir
     } else {
         Serial.println("HATA: Gecersiz Imza! Veri sahte veya bozulmus.");
+        SecurityOfficer::report_signature_result(false); // Başarısızlığı bildir!
+        
+        if (SecurityOfficer::is_system_locked()) {
+            wipe_all_sensitive_data();
+        }
     }
 }
 
@@ -191,6 +210,8 @@ void setup() {
     delay(2000);
     Serial.println("\n===== ESP32 POST-QUANTUM SUITE (KYBER & DILITHIUM) =====");
     
+    SecurityOfficer::init(); // Güvenlik modülünü başlat
+    
     // Ağ ve ESP-NOW Katmanını başlat
     Messenger::init();
     
@@ -207,6 +228,12 @@ void setup() {
 }
 
 void loop() {
+    if (SecurityOfficer::is_system_locked()) {
+        Serial.println("SİSTEM KİLİTLİ: Güvenlik ihlali sonrası işlem yapılamaz. Reset gerekli.");
+        delay(10000);
+        return;
+    }
+    
     delay(15000);
     test_kyber();
     test_dilithium();
