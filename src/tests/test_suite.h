@@ -2,7 +2,14 @@
 #define TEST_SUITE_H
 
 #include <stdint.h>
-#include <Arduino.h>
+
+#ifdef ARDUINO
+  #include <Arduino.h>
+#else
+  #include <stdio.h>
+  #include <string.h>
+  #include <time.h>
+#endif
 #include "../include/pqc_config.h"
 
 #ifdef ENABLE_PQC_TESTS
