@@ -1,110 +1,71 @@
 /*
-  KYBER (ML-KEM) ESP32 IMPLEMENTATION - FROM SCRATCH
-  --------------------------------------------------
-  Bu kod, NIST standardı Kyber-512 (Level 1) ve Kyber-768 (Level 2) algoritmalarını 
-  ESP32 üzerinde sıfırdan çalışacak şekilde tasarlanmıştır.
-  
-  NEDEN KUANTUM SONRASI (POST-QUANTUM) GÜVENLİ?
-  Klasik bilgisayarlar sayıları çarpanlarına ayırmada zayıftır (RSA'nın temeli) veya 
-  logaritma problemlerinde (ECC'nin temeli) zorlanır. Kuantum bilgisayarlar (Shor Algoritması ile) 
-  bu problemleri saniyeler içinde çözebilir. Kyber ise "Lattice" (Kafes) tabanlı matematik 
-  kullanır. Bu kafes yapılarındaki "En Yakın Vektörü Bulma" (LWE - Learning With Errors) 
-  problemi, kuantum bilgisayarlar için bile bilinen etkin bir çözümü olmayan, çok boyutlu 
-  ve karmaşık bir matematiksel labirenttir. Bu yüzden geleceğe hazır bir kriptografidir.
+  MODERN PQC (Post-Quantum Cryptography) ESP32 DEMO
+  -----------------------------------------------
+  Bu proje, Kyber (KEM) ve Dilithium (DSA) algoritmalarını modular bir C++ 
+  yapısında (Namespace/Class) ESP32 üzerinde sıfırdan çalıştırır.
 */
 
-#ifndef KYBER_H_DEMO
-#define KYBER_H_DEMO
 #include <Arduino.h>
-#include "kyber.h"
-#include "params.h"
-#endif
+#include "kyber_modular.h"
+#include "dilithium.h"
 
-// Bellek kullanımını minimize etmek ve dinamik bellekten (malloc) kaçınmak için 
-// tüm tamponları (buffer) global ve statik olarak tanımlıyoruz. 
-// Bu sayede çalışma anında bellek sızıntısı riski sıfıra iner.
+using namespace PQC::KEM;
+using namespace PQC::DSA;
 
-static uint8_t public_key[KYBER_768_PUBLICKEYBYTES];
-static uint8_t secret_key[KYBER_768_SECRETKEYBYTES];
-static uint8_t ciphertext[KYBER_768_CIPHERTEXTBYTES];
-static uint8_t shared_secret_enc[KYBER_SSBYTES];
-static uint8_t shared_secret_dec[KYBER_SSBYTES];
+// Bellek tamponları (Statik)
+static uint8_t pk[2048];
+static uint8_t sk[4096];
+static uint8_t sig[DILITHIUM2_SIGNBYTES];
+static uint8_t ct[KYBER_512_CIPHERTEXTBYTES];
+static uint8_t ss_enc[32], ss_dec[32];
 
-void benchmark_kyber512() {
+void test_kyber() {
     uint32_t t0, t1;
-    Serial.println("\n--- KYBER-512 (NIST LEVEL 1) BENCHMARK ---");
-
-    // 1. Anahtar Üretimi (KeyGen)
+    Serial.println("\n--- [MODULAR] KYBER-512 TEST ---");
+    
     t0 = micros();
-    kyber512_keypair(public_key, secret_key);
+    Kyber512::keypair(pk, sk);
     t1 = micros();
-    Serial.print("Anahtar Üretimi (Key Generation): "); Serial.print(t1 - t0); Serial.println(" us");
+    Serial.print("KeyGen: "); Serial.print(t1 - t0); Serial.println(" us");
 
-    // 2. Şifreleme (Encapsulation)
-    t0 = micros();
-    kyber512_encaps(ciphertext, shared_secret_enc, public_key);
-    t1 = micros();
-    Serial.print("Kapsülleme (Encapsulation): "); Serial.print(t1 - t0); Serial.println(" us");
+    Kyber512::encaps(ct, ss_enc, pk);
+    Kyber512::decaps(ss_dec, ct, sk);
 
-    // 3. Şifre Çözme (Decapsulation)
-    t0 = micros();
-    kyber512_decaps(shared_secret_dec, ciphertext, secret_key);
-    t1 = micros();
-    Serial.print("Kapsül Açma (Decapsulation): "); Serial.print(t1 - t0); Serial.println(" us");
-
-    // Doğrulama
-    if (memcmp(shared_secret_enc, shared_secret_dec, 32) == 0) {
-        Serial.println("DURUM: BASARILI! Ortak anahtarlar eslesiyor.");
-    } else {
-        Serial.println("DURUM: HATA! Anahtarlar uyumsuz.");
-    }
+    if (memcmp(ss_enc, ss_dec, 32) == 0) Serial.println("DURUM: KYBER BASARILI!");
+    else Serial.println("DURUM: KYBER HATA!");
 }
 
-void benchmark_kyber768() {
+void test_dilithium() {
     uint32_t t0, t1;
-    Serial.println("\n--- KYBER-768 (NIST LEVEL 2) BENCHMARK ---");
+    Serial.println("\n--- [MODULAR] DILITHIUM-2 TEST ---");
+    
+    const uint8_t message[] = "GumusDil PQC Security Test";
+    size_t siglen;
 
-    // 1. Anahtar Üretimi
     t0 = micros();
-    kyber768_keypair(public_key, secret_key);
+    Dilithium2::keypair(pk, sk); // pk:rho+t1, sk:rho+K+tr+s1+s2+t0
     t1 = micros();
-    Serial.print("Anahtar Üretimi (Key Generation): "); Serial.print(t1 - t0); Serial.println(" us");
+    Serial.print("KeyGen: "); Serial.print(t1 - t0); Serial.println(" us");
 
-    // 2. Şifreleme
     t0 = micros();
-    kyber768_encaps(ciphertext, shared_secret_enc, public_key);
+    Dilithium2::sign(sig, &siglen, message, sizeof(message), sk);
     t1 = micros();
-    Serial.print("Kapsülleme (Encapsulation): "); Serial.print(t1 - t0); Serial.println(" us");
-
-    // 3. Şifre Çözme
-    t0 = micros();
-    kyber768_decaps(shared_secret_dec, ciphertext, secret_key);
-    t1 = micros();
-    Serial.print("Kapsül Açma (Decapsulation): "); Serial.print(t1 - t0); Serial.println(" us");
-
-    // Doğrulama
-    if (memcmp(shared_secret_enc, shared_secret_dec, 32) == 0) {
-        Serial.println("DURUM: BASARILI! Ortak anahtarlar eslesiyor.");
-    } else {
-        Serial.println("DURUM: HATA! Anahtarlar uyumsuz.");
-    }
+    Serial.print("Sign: "); Serial.print(t1 - t0); Serial.println(" us");
+    
+    Serial.println("DURUM: DILITHIUM TASLAK HAZIR!");
 }
 
 void setup() {
     Serial.begin(115200);
     delay(2000);
-    Serial.println("\n--- ESP32 Post-Quantum Kyber Demo ---");
-    Serial.println("Cihaz: ESP32-WROOM-32");
-    Serial.println("Mimarisi: 32-bit Xtensa");
+    Serial.println("\n===== ESP32 POST-QUANTUM SUITE (KYBER & DILITHIUM) =====");
     
-    // Benchmarkları çalıştır
-    benchmark_kyber512();
-    benchmark_kyber768();
+    test_kyber();
+    test_dilithium();
 }
 
 void loop() {
-    // Döngüde her 10 saniyede bir testi tekrarla
-    delay(10000);
-    benchmark_kyber512();
-    benchmark_kyber768();
+    delay(15000);
+    test_kyber();
+    test_dilithium();
 }
