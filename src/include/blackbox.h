@@ -18,6 +18,9 @@ public:
     
     // Hata Kayıt (Flash'a yaz)
     static void log_error(const char* operation, uint32_t iteration, size_t leak_amount);
+
+    // Güvenlik Olayı Kayıt (Hacker hamlelerini kaydet)
+    static void log_security_incident(const char* incident_type, const uint8_t* attacker_mac = nullptr);
     
     // Geçmiş Kayıtları Oku (Seri porttan bas)
     static void print_saved_logs();

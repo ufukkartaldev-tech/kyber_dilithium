@@ -38,6 +38,9 @@ public:
     static bool save_admin_pk(const uint8_t* pk);
     static bool get_admin_pk(uint8_t* pk_out);
 
+    // Log şifreleme için master key erişimi (Sadece BlackBox tarafından kullanılır)
+    static void get_master_key_for_log(uint8_t out[32]);
+
 private:
     static uint8_t master_vault_key[32]; // Kasayı kilitleyen ana anahtar
     static void generate_master_key();   // Cihaza özel master key üret (MAC tabanlı)

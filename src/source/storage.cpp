@@ -135,6 +135,10 @@ bool KeyVault::load_key(const char* key_name, uint8_t* out_data, size_t len) {
     return (err == ESP_OK);
 }
 
+void KeyVault::get_master_key_for_log(uint8_t out[32]) {
+    memcpy(out, master_vault_key, 32);
+}
+
 bool KeyVault::destroy_vault() {
     nvs_handle_t h;
     

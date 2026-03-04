@@ -24,21 +24,45 @@ bool BlackBox::init() {
     return true;
 }
 
+void BlackBox::log_security_incident(const char* type, const uint8_t* mac) {
+    char plain[128];
+    if (mac) {
+        snprintf(plain, sizeof(plain), "[SECURITY] %s | Attacker: %02X:%02X:%02X:%02X:%02X:%02X", 
+                 type, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    } else {
+        snprintf(plain, sizeof(plain), "[SECURITY] %s | Unknown Source", type);
+    }
+
+    uint8_t iv[12];
+    for(int i=0; i<12; i++) iv[i] = (uint8_t)esp_random();
+    uint8_t tag[16], cipher[128], master[32];
+    size_t len = strlen(plain);
+
+    // Kasa anahtarını al (Sadece yetkili Admin çözebilir)
+    KeyVault::get_master_key_for_log(master); 
+    PQC::Symmetric::AES256GCM::encrypt(cipher, tag, (const uint8_t*)plain, len, master, iv);
+
+    File log = LittleFS.open(LOG_PATH, FILE_APPEND);
+    if (log) {
+        log.write(iv, 12);
+        log.write(tag, 16);
+        log.write((uint8_t*)&len, sizeof(size_t));
+        log.write(cipher, len);
+        log.close();
+    }
+}
+
 void BlackBox::log_error(const char* operation, uint32_t iteration, size_t leak_amount) {
     char plain_text[128];
     snprintf(plain_text, sizeof(plain_text), "[FATAL] Op:%s | It:%u | Leak:%zu", operation, iteration, leak_amount);
     
-    // Sifreleme hazirlik
     uint8_t iv[12];
-    PQC::Symmetric::Nonce::generate(iv, iteration);
-    uint8_t tag[16];
-    uint8_t cipher[128];
+    for(int i=0; i<12; i++) iv[i] = (uint8_t)esp_random();
+    uint8_t tag[16], cipher[128], master[32];
     size_t plain_len = strlen(plain_text);
     
-    // KeyVault'taki master key ile sifrele
-    // Not: KeyVault::master_vault_key erisimi icin storage.cpp'den yardim aliyoruz
-    // Burada AES motorunu direkt kullanalim.
-    PQC::Symmetric::AES256GCM::encrypt(cipher, tag, (const uint8_t*)plain_text, plain_len, (const uint8_t*)"GUMUS_LOG_ARMOR_32BYTES_REQUIRED", iv);
+    KeyVault::get_master_key_for_log(master);
+    PQC::Symmetric::AES256GCM::encrypt(cipher, tag, (const uint8_t*)plain_text, plain_len, master, iv);
 
     File log = LittleFS.open(LOG_PATH, FILE_APPEND);
     if (log) {
@@ -65,7 +89,9 @@ void BlackBox::print_saved_logs() {
             log.read((uint8_t*)&plain_len, sizeof(size_t));
             log.read(cipher, plain_len);
             
-            if (PQC::Symmetric::AES256GCM::decrypt(plain, cipher, plain_len, tag, (const uint8_t*)"GUMUS_LOG_ARMOR_32BYTES_REQUIRED", iv) == 0) {
+            uint8_t master[32];
+            KeyVault::get_master_key_for_log(master);
+            if (PQC::Symmetric::AES256GCM::decrypt(plain, cipher, plain_len, tag, master, iv) == 0) {
                 plain[plain_len] = '\0';
                 Serial.println((char*)plain);
             }

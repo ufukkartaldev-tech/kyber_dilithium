@@ -37,39 +37,27 @@ void SecurityOfficer::check_entropy_lock() {
 }
 
 void SecurityOfficer::report_signature_result(bool success) {
-    if (is_system_locked()) return;
-
-    uint32_t now = 0;
-    #ifdef ARDUINO
-    now = millis();
-    #endif
-
     if (success) {
-        failed_attempts = 0; 
+        if (failed_attempts > 0) failed_attempts--;
     } else {
         failed_attempts++;
+        uint32_t now = millis();
         
-        // Brute-force flood protection (User Request: 30sn window)
+        // Kara Kutuya kaydet
+        PQC::System::BlackBox::log_security_incident("SIGNATURE_FAILURE");
+
         if (now - last_fail_time < 30000) {
-           if (failed_attempts > FLOOD_THRESHOLD) {
-               #if defined(ARDUINO) && !defined(PQC_SILENT_MODE)
-               Serial.println("\n!!! GUVENLIK IHLALI: Seri Imza Hatasi (Flood Attack) Algilandi !!!");
-               #endif
+           if (failed_attempts > 50) {
+               PQC::System::BlackBox::log_security_incident("FLOOD_ATTACK_DETECTED");
                panic_wipe();
                return;
            }
         } else {
-           // 30 saniye gectiyse sayaci yariya indir (decay)
            failed_attempts /= 2;
         }
         last_fail_time = now;
 
-        #if defined(ARDUINO) && !defined(PQC_SILENT_MODE)
-        Serial.print("!!! GUVENLIK UYARISI: Yanlis Imza Denemesi "); 
-        Serial.print(failed_attempts); Serial.print("/"); Serial.println(MAX_ATTEMPTS);
-        #endif
-        
-        if (failed_attempts >= MAX_ATTEMPTS) {
+        if (failed_attempts >= 100) {
             panic_wipe();
         }
     }
@@ -79,6 +67,9 @@ void SecurityOfficer::panic_wipe() {
     system_locked_1 = true;
     system_locked_2 = LOCK_MAGIC_VAL;
     
+    // Kara Kutuya 'Self-Destruct' emaresi birak
+    PQC::System::BlackBox::log_security_incident("PANIC_WIPE_TRIGGERED");
+
     #if defined(ARDUINO) && !defined(PQC_SILENT_MODE)
     Serial.println("\n#############################################");
     Serial.println("# !!! PANIK MODU: GUVENLIK IHLALI TESPITI !!! #");
