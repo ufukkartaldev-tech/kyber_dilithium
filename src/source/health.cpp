@@ -36,20 +36,7 @@ size_t HealthMonitor::get_min_free_ram() {
 }
 
 void HealthMonitor::print_performance_table() {
-    #ifndef PQC_SILENT_MODE
-    Serial.println("\n===== GUMUSDIL PQC SYSTEM REPORT =====");
-    Serial.println("| Metric               | Value        | Unit |");
-    Serial.println("|----------------------|--------------|------|");
-    Serial.print("| Total SRAM           | 520          | KB   |\n");
-    Serial.print("| Current Free RAM     | "); Serial.print(ESP.getFreeHeap()/1024.0); Serial.println("        | KB   |");
-    Serial.print("| Max Recorded Stress  | "); Serial.print((520.0 - (ESP.getMinFreeHeap()/1024.0))); Serial.println("        | KB   |");
-    Serial.print("| RNG Entropy Quality  | "); Serial.print(check_rng_entropy() * 100.0); Serial.println("         | %    |");
-    Serial.print("| System Uptime        | "); Serial.print(millis()/1000); Serial.println("           | sec  |");
-    Serial.print("| Flash Encryption    | "); Serial.print(is_flash_encrypted() ? "ACTIVE" : "INACTIVE"); Serial.println("       |      |");
-    Serial.print("| Secure Boot         | "); Serial.print(is_secure_boot_active() ? "ACTIVE" : "INACTIVE"); Serial.println("       |      |");
-    Serial.print("| Hardware Secret Salt | "); Serial.print(is_hardware_salt_active() ? "ACTIVE" : "INACTIVE (NVS)"); Serial.println(" |      |");
-    Serial.println("======================================");
-    #endif
+    // RAM tasarrufu için raporlama devredışı bırakıldı.
 }
 
 // Shannon Entropisi: Rastgelelik Kalite Testi (Gümüshane Usulü Zar Kontrolü)
