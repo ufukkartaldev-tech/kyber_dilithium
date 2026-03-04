@@ -179,24 +179,28 @@ void poly_tomsg(uint8_t msg[32], const poly *r) {
     for (i = 0; i < 32; i++) {
         msg[i] = 0;
         for (j = 0; j < 8; j++) {
-            t = ((((uint32_t)r->coeffs[8 * i + j] << 1) + KYBER_Q / 2) / KYBER_Q) & 1;
-            msg[i] |= (uint8_t)(t << j);
+            // Constant-Time Division: (x * 2 + 1664) / 3329
+            uint32_t v = r->coeffs[8 * i + j];
+            v += ((int32_t)v >> 31) & KYBER_Q; // Map to [0, Q-1]
+            t = (((v << 1) + 1664) * 20159 + (1 << 25)) >> 26;
+            msg[i] |= (uint8_t)((t & 1) << j);
         }
     }
 }
 
 // Sıkıştırma (Compression): Katsayıların hassasiyetini düşürerek ciphertext boyutunu azaltır.
 void poly_compress(uint8_t *r, const poly *a, int du) {
-    // du=10 veya du=11 için implementasyon
-    // Bu kısım biraz karmaşık bit kaydırmaları içerir. Basitlik için sadece 10 ve 4 (dv) için özetleyelim.
     int i, j;
     uint32_t t;
     if (du == 10) {
         for (i = 0; i < 256 / 4; i++) {
             uint32_t c[4];
             for(j=0; j<4; j++) {
-                t = (a->coeffs[4*i+j] % KYBER_Q + KYBER_Q) % KYBER_Q;
-                c[j] = (((t << 10) + KYBER_Q / 2) / KYBER_Q) & 0x3FF;
+                t = a->coeffs[4*i+j];
+                t += ((int32_t)t >> 31) & KYBER_Q;
+                // Constant-time compression: (t * 1024 + 1664) / 3329
+                c[j] = (((t << 10) + 1664) * 20159 + (1 << 25)) >> 26;
+                c[j] &= 0x3FF;
             }
             r[5*i+0] = c[0] & 0xFF;
             r[5*i+1] = (c[0] >> 8) | ((c[1] & 0x3F) << 2);
@@ -208,8 +212,11 @@ void poly_compress(uint8_t *r, const poly *a, int du) {
          for (i = 0; i < 256 / 2; i++) {
             uint8_t c[2];
             for(j=0; j<2; j++) {
-                t = (a->coeffs[2*i+j] % KYBER_Q + KYBER_Q) % KYBER_Q;
-                c[j] = (((t << 4) + KYBER_Q / 2) / KYBER_Q) & 0xF;
+                t = a->coeffs[2*i+j];
+                t += ((int32_t)t >> 31) & KYBER_Q;
+                // Constant-time compression: (t * 16 + 1664) / 3329
+                c[j] = (((t << 4) + 1664) * 20159 + (1 << 25)) >> 26;
+                c[j] &= 0xF;
             }
             r[i] = c[0] | (c[1] << 4);
          }
