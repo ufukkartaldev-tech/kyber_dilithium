@@ -11,19 +11,20 @@ GümüşPQC is a high-performance, memory-efficient Post-Quantum Cryptography (P
 - **Hybrid Encryption**: Dual-layer security utilizing hardware AES-256-GCM and ChaCha20 for defense-in-depth data protection.
 - **Asynchronous Framework**: Non-blocking architecture offloading network traffic to Core 0 while reserving Core 1 for intensive cryptographic arithmetic.
 
-## Security & Resilience Infrastructure
+## Security & Resilience Infrastructure (v4.5 "Fortress")
 The library incorporates multiple defensive layers to mitigate advanced cyber threats and hardware-level attacks:
 
-1.  **Dilithium Identity Verification**: Enhances the Trust-Chain by requiring a cryptographic signature proof for every initial connection. This prevents MAC spoofing by ensuring the sender possesses the corresponding private key for the whitelisted hardware identity.
-2.  **Secure Hybrid Nonces**: Eliminates AES-GCM 'Nonce Reuse' vulnerabilities by combining monotonic session counters with high-entropy hardware random numbers. This ensures IV uniqueness even across system reboots or PRNG state repetitions.
-3.  **Flash Wear-Leveling (DoS Shield)**: Prevents physical Flash 'Burn-out' attacks by buffering NVS configuration updates (msg_ids, counters) in RAM. Data is committed to NVS using a multi-threshold strategy (packet count or time intervals), significantly extending the hardware lifespan.
-4.  **Post-Quantum OTA Verification**: Secures the update pipeline by enforcing Dilithium digital signature verification on firmware binaries. sahte yazılım (malicious firmware) is rejected at the pre-bootloader level, preventing remote code injection attacks.
-5.  **Encrypted BlackBox**: Critical system telemetry and security indicators are encrypted via AES-256-GCM and logged to LittleFS (Flash). This preserves forensic auditability while maintaining confidentiality against physical extraction.
-6.  **Silent Mode (Production Hardening)**: In production environments, UART (Serial) output is completely suppressed to prevent side-channel information leakage and local system disclosure.
-7.  **Persistent Anti-Replay Layer**: Monotonic message identifiers are tracked via NVS, ensuring that replayed transmissions are detected and rejected even across system power cycles.
-8.  **Session Timeout Mechanism**: A 500ms temporal guard is enforced for fragment reassembly. This prevents "Deadlock DoS" attacks where malformed or incomplete streams could exhaust internal buffers.
-9.  **Entropy Lock**: The True Random Number Generator (TRNG) quality is monitored via real-time Shannon Entropy analysis. Operations are suspended if entropy falls below the 75% threshold to prevent weak key generation.
-10. **Hardware Security Auditing**: Real-time monitoring of ESP32-specific hardware security flags, including 'Secure Boot' and 'Flash Encryption' status, reported via the health telemetry interface.
+1.  **Post-Quantum Trust-Chain (Handshake)**: A secure, sovereign device admission protocol. New nodes must present a Dilithium-signed "Participation Certificate" from an Admin node to join the network, preventing unauthorized device injection.
+2.  **Stealth Mode (Header Obfuscation)**: Packets are fully encrypted (Headers + Payload) using AES-256-GCM with a dynamic Privacy Key. This turns network traffic into unreadable noise, preventing Traffic Analysis and metadata leakage.
+3.  **Moving Target Defense (Key Rotation)**: The network's privacy key automatically evolves every 1000 messages (Epochs). If a session key is compromised, it cannot be used to decrypt past or future traffic.
+4.  **Anti-Tamper Self-Destruct (Panic Wipe)**: Detects physical tampering, voltage glitching, or brute-force attempts. Upon breach detection, the system triggers an autonomous "Panic Wipe," erasing all secret keys from NVS within milliseconds.
+5.  **Hardware-Rooted Secret Salt (eFuse Pinning)**: The Master Key derivation material is stored in read-protected ESP32 eFuse blocks. This prevents "Flash Dump" attacks, as the key cannot be reconstructed from external memory extracts.
+6.  **Redundant Security Logic**: Critical security checks use dual-flag verification with magic-value buffers to protect against "Instruction Skipping" fault injection attacks.
+7.  **Forensic BlackBox**: Security incidents (Flood attacks, signature failures, panic triggers) are encrypted and logged to persistent memory for post-mortem analysis by authorized administrators.
+8.  **Chaos Engineering Tests**: A dedicated "Adversary" test suite that simulates real-world hacking attempts (Replay, Flooding, Power-cycle desync, Flash corruption) to ensure continuous defensive integrity.
+9.  **Persistent Anti-Replay Layer**: Monotonic message identifiers are tracked via NVS with signed-comparison logic, protecting against counter wrap-around vulnerabilities and re-injection attacks.
+10. **Entropy-Locked Execution**: Real-time monitoring of the True Random Number Generator (TRNG). Operations are suspended if entropy falls below safety thresholds, preventing weak key generation.
+11. **Post-Quantum OTA Verification**: Firmware updates are validated via Dilithium digital signatures, ensuring only authorized binaries can be executed on the nodes.
 
 ## Memory Optimization Strategies
 To ensure reliable execution within the 520 KB RAM constraints of the ESP32, several specialized techniques have been implemented:
