@@ -15,6 +15,7 @@
 #include "src/include/workspace.h"
 #include "src/include/blackbox.h"
 #include "src/include/storage.h"
+#include "src/include/ota.h"
 
 #ifdef ENABLE_PQC_TESTS
   #include "src/tests/test_suite.h"
@@ -206,6 +207,32 @@ void test_persistent_vault() {
     }
 }
 
+void test_ota_verification() {
+    Serial.println("\n--- [OTA SECURITY] POST-QUANTUM FIRMWARE VERIFICATION ---");
+    
+    // 1. Root Keypair Üret (Üretici tarafı)
+    uint8_t root_pk[1312];
+    uint8_t root_sk[2528];
+    Dilithium2::keypair(root_pk, root_sk);
+    OTAGuard::set_root_pk(root_pk); // Cihaza Root PK'yı göm
+    
+    // 2. Yeni Yazılım ve İmza Hazırla (Update Server tarafı)
+    const char* new_firmware = "GumusPQC_Firmware_v2.0_Encrypted_Binary_Data";
+    size_t fw_len = strlen(new_firmware);
+    uint8_t update_blob[2420 + 64]; // [Signature] + [Firmware]
+    size_t sig_len = 0;
+    
+    Dilithium2::sign(update_blob, &sig_len, (const uint8_t*)new_firmware, fw_len, root_sk);
+    memcpy(update_blob + 2420, new_firmware, fw_len);
+    
+    // 3. Yazılımı Doğrula (Cihaz tarafı)
+    if (OTAGuard::verify_update(update_blob, 2420 + fw_len)) {
+        Serial.println("SONUC: OTA Dogrulamasi Basarili. Yazilim yuklenebilir.");
+    } else {
+        Serial.println("SONUC: OTA GUVENLIK HATASI! Sahte yazilim reddedildi.");
+    }
+}
+
 void setup() {
     #ifndef PQC_SILENT_MODE
     Serial.begin(115200);
@@ -244,6 +271,7 @@ void setup() {
     test_dilithium();
     test_authenticated_encryption();
     test_adaptive_authenticated_encryption();
+    test_ota_verification();
     
     Serial.print("SYSTEM: HW RNG Entropy Quality: "); 
     Serial.print(HealthMonitor::check_rng_entropy() * 100.0); Serial.println("%");

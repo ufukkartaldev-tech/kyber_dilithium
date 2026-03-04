@@ -14,12 +14,16 @@ GümüşPQC is a high-performance, memory-efficient Post-Quantum Cryptography (P
 ## Security & Resilience Infrastructure
 The library incorporates multiple defensive layers to mitigate advanced cyber threats and hardware-level attacks:
 
-1.  **Trust-Chain (Peer Whitelisting)**: A persistent MAC-based whitelist ensures that only authenticated network participants can initiate or relay data. Unauthorized packets are discarded at the link layer.
-2.  **Encrypted BlackBox**: Critical system telemetry and security indicators are encrypted via AES-256-GCM and logged to LittleFS (Flash). This preserves forensic auditability while maintaining confidentiality against physical extraction.
-3.  **Silent Mode (Production Hardening)**: In production environments, UART (Serial) output is completely suppressed to prevent side-channel information leakage and local system disclosure.
-4.  **Persistent Anti-Replay Layer**: Monotonic message identifiers are tracked via NVS, ensuring that replayed transmissions are detected and rejected even across system power cycles.
-5.  **Session Timeout Mechanism**: A 500ms temporal guard is enforced for fragment reassembly. This prevents "Deadlock DoS" attacks where malformed or incomplete streams could exhaust internal buffers.
-6.  **Entropy Lock**: The True Random Number Generator (TRNG) quality is monitored via real-time Shannon Entropy analysis. Operations are suspended if entropy falls below the 75% threshold to prevent weak key generation.
+1.  **Dilithium Identity Verification**: Enhances the Trust-Chain by requiring a cryptographic signature proof for every initial connection. This prevents MAC spoofing by ensuring the sender possesses the corresponding private key for the whitelisted hardware identity.
+2.  **Secure Hybrid Nonces**: Eliminates AES-GCM 'Nonce Reuse' vulnerabilities by combining monotonic session counters with high-entropy hardware random numbers. This ensures IV uniqueness even across system reboots or PRNG state repetitions.
+3.  **Flash Wear-Leveling (DoS Shield)**: Prevents physical Flash 'Burn-out' attacks by buffering NVS configuration updates (msg_ids, counters) in RAM. Data is committed to NVS using a multi-threshold strategy (packet count or time intervals), significantly extending the hardware lifespan.
+4.  **Post-Quantum OTA Verification**: Secures the update pipeline by enforcing Dilithium digital signature verification on firmware binaries. sahte yazılım (malicious firmware) is rejected at the pre-bootloader level, preventing remote code injection attacks.
+5.  **Encrypted BlackBox**: Critical system telemetry and security indicators are encrypted via AES-256-GCM and logged to LittleFS (Flash). This preserves forensic auditability while maintaining confidentiality against physical extraction.
+6.  **Silent Mode (Production Hardening)**: In production environments, UART (Serial) output is completely suppressed to prevent side-channel information leakage and local system disclosure.
+7.  **Persistent Anti-Replay Layer**: Monotonic message identifiers are tracked via NVS, ensuring that replayed transmissions are detected and rejected even across system power cycles.
+8.  **Session Timeout Mechanism**: A 500ms temporal guard is enforced for fragment reassembly. This prevents "Deadlock DoS" attacks where malformed or incomplete streams could exhaust internal buffers.
+9.  **Entropy Lock**: The True Random Number Generator (TRNG) quality is monitored via real-time Shannon Entropy analysis. Operations are suspended if entropy falls below the 75% threshold to prevent weak key generation.
+10. **Hardware Security Auditing**: Real-time monitoring of ESP32-specific hardware security flags, including 'Secure Boot' and 'Flash Encryption' status, reported via the health telemetry interface.
 
 ## Memory Optimization Strategies
 To ensure reliable execution within the 520 KB RAM constraints of the ESP32, several specialized techniques have been implemented:
