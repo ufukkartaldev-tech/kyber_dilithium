@@ -66,7 +66,10 @@ void TestSuite::run_all_tests() {
     log_test("Buffer Flooding Resistance", test_fragment_flooding());
     log_test("Flood Damage Self-Lock", test_rng_failure_lock());
     log_test("Counter Wrap-around Safety", test_counter_overflow());
-    log_test("Flash Integrity Audit", test_flash_integrity_violation());
+    log_test("Flash Integrity Control", test_flash_integrity_violation());
+    log_test("Power-Cycle Resilience", test_power_cycle_resilience());
+    log_test("TRNG Entropy Drop Defense", test_trng_entropy_drop());
+    log_test("Multi-Device Mesh Stress", test_multi_device_stress());
 #else
     log_test("Randomness Entropy", test_randomness_entropy());
     log_test("Dilithium Malleability", test_dilithium_malleability());

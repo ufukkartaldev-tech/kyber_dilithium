@@ -46,6 +46,9 @@ private:
     static bool test_rng_failure_lock();
     static bool test_counter_overflow();
     static bool test_flash_integrity_violation();
+    static bool test_power_cycle_resilience();
+    static bool test_trng_entropy_drop();
+    static bool test_multi_device_stress();
     
     // Yardımcılar
     static void log_test(const char* name, bool result);
