@@ -23,18 +23,22 @@ namespace Network {
 namespace PQC {
 namespace Network {
 
-enum PacketType { MSG_DATA = 0, MSG_ACK = 1, MSG_HANDSHAKE_REQ = 2, MSG_HANDSHAKE_CERT = 3 };
+enum PacketType { MSG_DATA = 0, MSG_ACK = 1, MSG_HANDSHAKE_REQ = 2, MSG_HANDSHAKE_CERT = 3, MSG_AUTH = 4 };
 
 typedef struct {
-    uint8_t type;        // PacketType
-    uint8_t final_dest[6]; // Nihai Hedef MAC (Mesh Routing)
-    uint32_t msg_id;     // Benzersiz Mesaj Kimliği (Anti-Replay)
-    uint8_t seq;         // Sequence number
-    uint8_t total;       // Total fragments
-    uint8_t payload_len; // Content length
-    uint8_t sig[2420];   // Dilithium2 Signature (Sadece seq 0 paketlerinde)
-    uint8_t payload[PQC_PAYLOAD_SIZE - 4]; // msg_id için 4 byte düştü.
-} __attribute__((packed, aligned(4))) fragment_packet_t;
+    uint8_t type;
+    uint8_t final_dest[6];
+    uint32_t msg_id;
+    uint8_t seq;
+    uint8_t total;
+    uint8_t payload_len;
+} __attribute__((packed)) packet_header_t;
+
+typedef struct {
+    uint8_t iv[12]; 
+    uint8_t auth_tag[16];
+    uint8_t data[222]; // Encrypted (Header + Payload)
+} __attribute__((packed, aligned(4))) fragment_packet_t; // 250 Bytes limit compatible
 
 class Messenger {
 public:
