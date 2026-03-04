@@ -124,6 +124,19 @@ void network_task(void* pvParameters) {
                 pkt.payload_len = (uint8_t)current_len;
                 memcpy(pkt.payload, msg.data + (i * PQC_PAYLOAD_SIZE_CLEAN), current_len);
                 
+                // İlk fragmanda (seq 0) kimlik imzası gönder (MAC Spoofing koruması)
+                if (pkt.seq == 0) {
+                    uint8_t local_sk[2528];
+                    if (PQC::System::KeyVault::load_key("K_DILI_SK", local_sk, 2528)) {
+                        uint8_t auth_data[6];
+                        memcpy(auth_data, &pkt.msg_id, 4);
+                        auth_data[4] = pkt.total;
+                        auth_data[5] = pkt.payload_len;
+                        size_t sig_len = 0;
+                        PQC::DSA::Dilithium2::sign(pkt.sig, &sig_len, auth_data, 6, local_sk);
+                    }
+                }
+
                 int retry = 0;
                 bool success = false;
                 while (retry < 3 && !success) {
@@ -204,6 +217,25 @@ void Messenger::on_data_recv(const uint8_t* mac, const uint8_t* incomingData, in
         
         // Session Lock: Fragmanlarin karismasini onle
         if (pkt->seq == 0) {
+            // 2.1 IDENTITY VERIFICATION (Dilithium Proof)
+            uint8_t peer_pk[1312];
+            if (PQC::System::KeyVault::get_peer_public_key(mac, peer_pk)) {
+                // Mesaj basligini (msg_id + total + payload_len) dogrula
+                uint8_t auth_data[6];
+                memcpy(auth_data, &pkt->msg_id, 4);
+                auth_data[4] = pkt->total;
+                auth_data[5] = pkt->payload_len;
+                
+                if (PQC::DSA::Dilithium2::verify(pkt->sig, 2420, auth_data, 6, peer_pk) != 0) {
+                   #ifndef PQC_SILENT_MODE
+                   Serial.println("\n[SECURITY] Identity Fraud: Dilithium imza dogrulamasi basarisiz!");
+                   #endif
+                   return;
+                }
+            } else {
+                return; // Whitelist'te ama PK yoksa reddet
+            }
+
             last_received_msg_id = pkt->msg_id;
             PQC::System::KeyVault::save_config_uint32("rx_msg_id", last_received_msg_id); // Persist
             memcpy(current_session_mac, mac, 6);

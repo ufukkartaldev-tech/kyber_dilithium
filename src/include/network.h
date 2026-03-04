@@ -32,8 +32,9 @@ typedef struct {
     uint8_t seq;         // Sequence number
     uint8_t total;       // Total fragments
     uint8_t payload_len; // Content length
+    uint8_t sig[2420];   // Dilithium2 Signature (Sadece seq 0 paketlerinde)
     uint8_t payload[PQC_PAYLOAD_SIZE - 4]; // msg_id için 4 byte düştü.
-} __attribute__((packed, aligned(4))) fragment_packet_t; // DMA: 250 bytes total
+} __attribute__((packed, aligned(4))) fragment_packet_t;
 
 class Messenger {
 public:

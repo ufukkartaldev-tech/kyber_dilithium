@@ -219,7 +219,12 @@ void setup() {
     #endif
 
     KeyVault::init();
-    KeyVault::add_trusted_peer(PEER_MAC); // Demo icin guvenli listeye ekle
+    
+    // Peer Trust-Chain Testi icin sahte PK uret ve kaydet
+    uint8_t dummy_peer_pk[1312];
+    memset(dummy_peer_pk, 0xAF, 1312);
+    KeyVault::add_trusted_peer(PEER_MAC, dummy_peer_pk); 
+    
     test_persistent_vault();
     
     #ifdef ENABLE_PQC_TESTS
