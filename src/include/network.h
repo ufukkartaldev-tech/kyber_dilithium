@@ -23,7 +23,7 @@ namespace Network {
 namespace PQC {
 namespace Network {
 
-enum PacketType { MSG_DATA = 0, MSG_ACK = 1 };
+enum PacketType { MSG_DATA = 0, MSG_ACK = 1, MSG_HANDSHAKE_REQ = 2, MSG_HANDSHAKE_CERT = 3 };
 
 typedef struct {
     uint8_t type;        // PacketType

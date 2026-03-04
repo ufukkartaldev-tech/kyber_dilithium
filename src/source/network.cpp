@@ -2,6 +2,7 @@
 #include "../include/encryption.h"
 #include "../include/dilithium.h"
 #include "../include/storage.h"
+#include "../include/trust_manager.h"
 #include <string.h>
 
 #ifdef ARDUINO
@@ -179,18 +180,45 @@ void network_task(void* pvParameters) {
 void Messenger::on_data_recv(const uint8_t* mac, const uint8_t* incomingData, int len) {
     if (len < 4) return;
     
+    fragment_packet_t* pkt = (fragment_packet_t*)incomingData;
+
     // 0. TRUST-CHAIN (Whitelisting): Bilinmeyen MAC'lerden gelen veriyi reddet
+    // İSTİSNA: Handshake paketleri (REQ/CERT) yeni cihaz eklemek için her zaman kabul edilir.
     if (!PQC::System::KeyVault::is_peer_trusted(mac)) {
+        if (pkt->type != MSG_HANDSHAKE_REQ && pkt->type != MSG_HANDSHAKE_CERT) {
+            #ifndef PQC_SILENT_MODE
+            Serial.println("\n[SECURITY] Trust-Chain Violation: Whitelisted olmayan MAC engellendi!");
+            #endif
+            return;
+        }
+    }
+    
+    if (pkt->type == MSG_ACK) {
+        ack_received = true;
+        return;
+    }
+
+    // 0.1 HANDSHAKE MANTIĞI
+    if (pkt->type == MSG_HANDSHAKE_REQ) {
         #ifndef PQC_SILENT_MODE
-        Serial.println("\n[SECURITY] Trust-Chain Violation: Whitelisted olmayan MAC engellendi!");
+        Serial.println("\n[TRUST] Handshake Request alindi. Admin onay bekliyor...");
+        // Gerçek sistemde burada bir PK ve MAC incelenir.
         #endif
         return;
     }
 
-    fragment_packet_t* pkt = (fragment_packet_t*)incomingData;
-    
-    if (pkt->type == MSG_ACK) {
-        ack_received = true;
+    if (pkt->type == MSG_HANDSHAKE_CERT) {
+        uint8_t admin_pk[1312];
+        if (PQC::System::KeyVault::get_admin_pk(admin_pk)) {
+            // Sertifika Doğrulaması (Kendi MAC/PK'mız için veya başkası için)
+            // Not: Bu demo akışında veriler paket başlıkları ve payload üzerinden doğrulanır.
+            #ifndef PQC_SILENT_MODE
+            Serial.println("\n[TRUST] Admin Sertifikasi alindi. Guven Zinciri dogrulaniyor...");
+            #endif
+            
+            // Eğer doğrulama başarılıysa (Admin imzası geçerliyse)
+            // PQC::System::KeyVault::add_trusted_peer(new_mac, new_pk);
+        }
         return;
     }
     

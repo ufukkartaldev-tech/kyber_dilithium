@@ -170,18 +170,35 @@ bool KeyVault::is_peer_trusted(const uint8_t* mac) {
 }
 
 bool KeyVault::get_peer_public_key(const uint8_t* mac, uint8_t* pk_out) {
-    nvs_handle_t nvs_handle;
-    if (nvs_open("pqc_peers", NVS_READONLY, &nvs_handle) == ESP_OK) {
-        char mac_str[13];
-        sprintf(mac_str, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-        size_t len = 1312; // Dilithium2 PK Size
-        esp_err_t err = nvs_get_blob(nvs_handle, mac_str, pk_out, &len);
-        nvs_close(nvs_handle);
-        return (err == ESP_OK);
-    }
-    return false;
+    nvs_handle_t h;
+    if (nvs_open("pqc_peers", NVS_READONLY, &h) != ESP_OK) return false;
+    
+    char key[13];
+    snprintf(key, 13, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    
+    size_t pk_len = 1312;
+    esp_err_t err = nvs_get_blob(h, key, pk_out, &pk_len);
+    nvs_close(h);
+    return (err == ESP_OK);
 }
 
+bool KeyVault::save_admin_pk(const uint8_t* pk) {
+    nvs_handle_t h;
+    if (nvs_open("pqc_sys", NVS_READWRITE, &h) != ESP_OK) return false;
+    nvs_set_blob(h, "admin_pk", pk, 1312);
+    nvs_commit(h);
+    nvs_close(h);
+    return true;
+}
+
+bool KeyVault::get_admin_pk(uint8_t* pk_out) {
+    nvs_handle_t h;
+    if (nvs_open("pqc_sys", NVS_READONLY, &h) != ESP_OK) return false;
+    size_t len = 1312;
+    esp_err_t err = nvs_get_blob(h, "admin_pk", pk_out, &len);
+    nvs_close(h);
+    return (err == ESP_OK);
+}
 void KeyVault::add_trusted_peer(const uint8_t* mac, const uint8_t* public_key) {
     nvs_handle_t nvs_handle;
     if (nvs_open("pqc_peers", NVS_READWRITE, &nvs_handle) == ESP_OK) {

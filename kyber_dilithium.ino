@@ -16,6 +16,7 @@
 #include "src/include/blackbox.h"
 #include "src/include/storage.h"
 #include "src/include/ota.h"
+#include "src/include/trust_manager.h"
 
 #ifdef ENABLE_PQC_TESTS
   #include "src/tests/test_suite.h"
@@ -233,6 +234,35 @@ void test_ota_verification() {
     }
 }
 
+void test_pq_handshake() {
+    using namespace PQC::Security;
+    Serial.println("\n--- [TRUST CHAIN] POST-QUANTUM DEVICE HANDSHAKE ---");
+
+    // 1. Admin Tarafı: Root Keypair Hazırla
+    uint8_t admin_pk[1312], admin_sk[2528];
+    Dilithium2::keypair(admin_pk, admin_sk);
+    PQC::System::KeyVault::save_admin_pk(admin_pk); // Root PK'yı sisteme işle
+    
+    // 2. Yeni Cihaz Tarafı: Kendi Kimliğini Üret
+    uint8_t new_pk[1312], new_sk[2528];
+    uint8_t new_mac[6] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55};
+    Dilithium2::keypair(new_pk, new_sk);
+    
+    // 3. Handshake: Admin Sertifika Düzenler (İmza)
+    uint8_t trust_token[2420];
+    if (TrustManager::issue_certificate(trust_token, new_mac, new_pk, admin_sk)) {
+        Serial.println("TRUST: Admin yeni cihaz icin 'Katilim Sertifikasi' uretti.");
+    }
+    
+    // 4. Doğrulama: Diğer düğümler sertifikayı Admin PK ile doğrular
+    if (TrustManager::verify_certificate(trust_token, new_mac, new_pk, admin_pk)) {
+        Serial.println("SONUC: Handshake Basarili! Yeni cihaz Guven Zinciri'ne eklendi.");
+        PQC::System::KeyVault::add_trusted_peer(new_mac, new_pk);
+    } else {
+        Serial.println("SONUC: GUVENLIK IHLALI! Gecersiz sertifika ile sızma girişimi.");
+    }
+}
+
 void setup() {
     #ifndef PQC_SILENT_MODE
     Serial.begin(115200);
@@ -272,6 +302,7 @@ void setup() {
     test_authenticated_encryption();
     test_adaptive_authenticated_encryption();
     test_ota_verification();
+    test_pq_handshake();
     
     Serial.print("SYSTEM: HW RNG Entropy Quality: "); 
     Serial.print(HealthMonitor::check_rng_entropy() * 100.0); Serial.println("%");
