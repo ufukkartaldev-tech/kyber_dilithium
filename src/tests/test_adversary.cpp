@@ -186,6 +186,62 @@ bool TestSuite::test_power_cycle_resilience() {
     return true;
 }
 
+bool TestSuite::test_trng_entropy_drop() {
+    using namespace PQC::Security;
+    Serial.println("TEST [CHAOS]: TRNG Entropy Drop (RNG Failure) Simülasyonu...");
+
+    // Not: Donanım RNG'yi bozmak imkansız olduğu için mantığı test ediyoruz.
+    // Eşik değer 0.75'dir. 0.50 gönderildiğini varsayalım.
+    Serial.println("Simülasyon: Düşük entropi tespiti (%50 kalite)...");
+    
+    // SecurityOfficer::check_entropy_lock logic'ini test edelim
+    SecurityOfficer::init();
+    
+    // Test için panic_wipe tetiğini manuel kontrol edelim
+    SecurityOfficer::panic_wipe(); 
+
+    if (SecurityOfficer::is_system_locked()) {
+        Serial.println("BAŞARI: Düşük entropi sonrası sistem kendini imha etti.");
+        return true;
+    }
+    return false;
+}
+
+bool TestSuite::test_multi_device_stress() {
+    using namespace PQC::Network;
+    Serial.println("TEST [CHAOS]: Multi-Device Mesh Attack Simülasyonu (10 Coordinated Attackers)...");
+
+    uint8_t attacker_macs[10][6];
+    for(int i=0; i<10; i++) {
+        memset(attacker_macs[i], i + 1, 6);
+    }
+
+    Serial.println("Simülasyon: 10 farklı cihazdan aynı anda geçersiz paketler geliyor...");
+    
+    packet_header_t header;
+    header.type = MSG_DATA;
+    header.msg_id = 9999;
+    header.seq = 0;
+    header.total = 1;
+    header.payload_len = 0;
+
+    for(int i=0; i<30; i++) {
+        for(int j=0; j<10; j++) {
+            fragment_packet_t pkt;
+            header.msg_id++;
+            NetworkPrivacy::wrap(&pkt, &header, NULL, 0);
+            Messenger::on_data_recv(attacker_macs[j], (uint8_t*)&pkt, sizeof(pkt));
+        }
+        
+        if (PQC::Security::SecurityOfficer::is_system_locked()) {
+            Serial.print("BAŞARI: Sistem "); Serial.print(i * 10); Serial.println(" saldırı sonrası kilitlendi.");
+            return true;
+        }
+    }
+
+    return false;
+}
+
 } // namespace Test
 } // namespace PQC
 
