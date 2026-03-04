@@ -25,6 +25,13 @@ static QueueHandle_t network_queue = NULL;
 static uint32_t global_msg_id = 1; // Artan mesaj kimliği
 static uint32_t last_received_msg_id = 0; // Anti-Replay takibi (Tek kanal için basitleştirilmiş)
 
+static int tx_save_counter = 0;
+static int rx_save_counter = 0;
+static uint32_t last_tx_save_time = 0;
+static uint32_t last_rx_save_time = 0;
+#define PQC_NVS_SAVE_INTERVAL 50
+#define PQC_NVS_SAVE_TIME_MS 60000
+
 struct network_msg_t {
     uint8_t target_mac[6]; // Şuradaki (Immediate) hedef
     uint8_t final_mac[6];  // Nihai (Endpoint) hedef
@@ -156,12 +163,13 @@ void network_task(void* pvParameters) {
                 }
             }
 
-            // tx_id'yi yedekle
-            #ifndef PQC_SILENT_MODE
-            PQC::System::KeyVault::save_config_uint32("tx_msg_id", global_msg_id);
-            #else
-            PQC::System::KeyVault::save_config_uint32("tx_msg_id", global_msg_id);
-            #endif
+            // tx_id'yi yedekle (Flash Wear-Leveling: 50 paket veya 60sn'de bir)
+            tx_save_counter++;
+            if (tx_save_counter >= PQC_NVS_SAVE_INTERVAL || (millis() - last_tx_save_time > PQC_NVS_SAVE_TIME_MS)) {
+                PQC::System::KeyVault::save_config_uint32("tx_msg_id", global_msg_id);
+                tx_save_counter = 0;
+                last_tx_save_time = millis();
+            }
             
             messenger_busy = false;
         }
@@ -237,7 +245,15 @@ void Messenger::on_data_recv(const uint8_t* mac, const uint8_t* incomingData, in
             }
 
             last_received_msg_id = pkt->msg_id;
-            PQC::System::KeyVault::save_config_uint32("rx_msg_id", last_received_msg_id); // Persist
+            
+            // rx_id'yi yedekle (Flash Wear-Leveling)
+            rx_save_counter++;
+            if (rx_save_counter >= PQC_NVS_SAVE_INTERVAL || (millis() - last_rx_save_time > PQC_NVS_SAVE_TIME_MS)) {
+                PQC::System::KeyVault::save_config_uint32("rx_msg_id", last_received_msg_id);
+                rx_save_counter = 0;
+                last_rx_save_time = millis();
+            }
+            
             memcpy(current_session_mac, mac, 6);
         } else {
             if (memcmp(current_session_mac, mac, 6) != 0) {
