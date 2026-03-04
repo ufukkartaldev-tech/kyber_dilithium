@@ -1,5 +1,7 @@
 #include "../include/storage.h"
 #include "../include/encryption.h"
+#include "../include/fips202.h"
+#include "../include/security.h"
 #include <string.h>
 
 #ifdef ARDUINO
@@ -20,7 +22,8 @@ bool KeyVault::init() {
         ESP_ERROR_CHECK(nvs_flash_erase());
         err = nvs_flash_init();
     }
-    
+
+    Security::SecurityOfficer::check_entropy_lock();
     generate_master_key(); // Cihazin kimligini ve gizli tuzu kullanarak kasanin anahtarini uret.
     
     return (err == ESP_OK);
@@ -52,10 +55,12 @@ void KeyVault::generate_master_key() {
     }
     
     // MASTER KEY DERIVATION: MAC + Secret Salt 
-    // Basit XOR/Shift yerine SHA256 ile karistirmak en dogrusu ama simdi hibrit yapiyoruz.
-    for(int i=0; i<32; i++) {
-        master_vault_key[i] = secret_salt[i] ^ (mac[i % 6] + (uint8_t)i);
-    }
+    // SHA3-256 kullanarak MAC ve Salt'ı birbirine karıştır (Brute-force'u zorlaştır)
+    uint8_t input_material[38];
+    memcpy(input_material, mac, 6);
+    memcpy(input_material + 6, secret_salt, 32);
+    
+    sha3_256(master_vault_key, input_material, 38);
 }
 
 bool KeyVault::save_key(const char* key_name, const uint8_t* key_data, size_t len) {

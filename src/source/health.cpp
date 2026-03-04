@@ -5,6 +5,8 @@
 #ifdef ARDUINO
 #include <Arduino.h>
 #include <cmath> // log2 için
+#include "esp_flash_encrypt.h"
+#include "esp_secure_boot.h"
 
 namespace PQC {
 namespace System {
@@ -41,6 +43,8 @@ void HealthMonitor::print_performance_table() {
     Serial.print("| Max Recorded Stress  | "); Serial.print((520.0 - (ESP.getMinFreeHeap()/1024.0))); Serial.println("        | KB   |");
     Serial.print("| RNG Entropy Quality  | "); Serial.print(check_rng_entropy() * 100.0); Serial.println("         | %    |");
     Serial.print("| System Uptime        | "); Serial.print(millis()/1000); Serial.println("           | sec  |");
+    Serial.print("| Flash Encryption    | "); Serial.print(is_flash_encrypted() ? "ACTIVE" : "INACTIVE"); Serial.println("       |      |");
+    Serial.print("| Secure Boot         | "); Serial.print(is_secure_boot_active() ? "ACTIVE" : "INACTIVE"); Serial.println("       |      |");
     Serial.println("======================================");
     #endif
 }
@@ -70,6 +74,22 @@ float HealthMonitor::calculate_shannon_entropy(const uint8_t* data, size_t len) 
         }
     }
     return ent;
+}
+
+bool HealthMonitor::is_flash_encrypted() {
+    #ifdef ARDUINO
+    return esp_flash_encryption_enabled();
+    #else
+    return false;
+    #endif
+}
+
+bool HealthMonitor::is_secure_boot_active() {
+    #ifdef ARDUINO
+    return esp_secure_boot_enabled();
+    #else
+    return false;
+    #endif
 }
 
 } // namespace System

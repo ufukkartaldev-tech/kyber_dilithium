@@ -28,6 +28,10 @@ public:
     // Raporlama Aracı
     static void print_performance_table();
 
+    // Hardware Security Status
+    static bool is_flash_encrypted();
+    static bool is_secure_boot_active();
+
 private:
     static float calculate_shannon_entropy(const uint8_t* data, size_t len);
     static uint32_t last_idle_time;
