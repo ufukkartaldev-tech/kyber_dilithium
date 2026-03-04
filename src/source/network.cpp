@@ -65,10 +65,10 @@ bool Messenger::init() {
     if (!KeyVault::load_config_uint32("tx_msg_id", &global_msg_id)) global_msg_id = 100;
     if (!KeyVault::load_config_uint32("rx_msg_id", &last_received_msg_id)) last_received_msg_id = 0;
 
-    // Privacy Key'i ayarla (Demo için sabit, gerçekte KeyVault'tan gelir)
-    uint8_t privacy_key[32];
-    memset(privacy_key, 0x54, 32); 
-    NetworkPrivacy::set_privacy_key(privacy_key);
+    // Privacy Master Key'i ayarla (Demo için sabit, gerçekte onboard sırasında anlaşılır)
+    uint8_t privacy_master[32];
+    memset(privacy_master, 0x47, 32); // Gizlilik Kök Anahtarı
+    NetworkPrivacy::set_network_master_key(privacy_master);
 
     // Network Task ve Queue oluştur (Pro-Core / DMA Offload)
     network_queue = xQueueCreate(2, sizeof(network_msg_t));
