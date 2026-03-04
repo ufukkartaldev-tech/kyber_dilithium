@@ -125,5 +125,15 @@ void KDF::derive_keys(uint8_t chacha_key[32], uint8_t aes_key[32], const uint8_t
     memcpy(aes_key, output + 32, 32);    // Kalan 32 bayt AES için
 }
 
+void Nonce::generate(uint8_t iv[12], uint32_t counter) {
+    memcpy(iv, &counter, 4);
+    #ifdef ARDUINO
+    #include <Arduino.h>
+    for(int i=4; i<12; i++) iv[i] = (uint8_t)esp_random();
+    #else
+    for(int i=4; i<12; i++) iv[i] = (uint8_t)rand();
+    #endif
+}
+
 } // namespace Symmetric
 } // namespace PQC

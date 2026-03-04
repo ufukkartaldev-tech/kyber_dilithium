@@ -29,7 +29,8 @@ void BlackBox::log_error(const char* operation, uint32_t iteration, size_t leak_
     snprintf(plain_text, sizeof(plain_text), "[FATAL] Op:%s | It:%u | Leak:%zu", operation, iteration, leak_amount);
     
     // Sifreleme hazirlik
-    uint8_t iv[12] = {0}; // Basit IV
+    uint8_t iv[12];
+    PQC::Symmetric::Nonce::generate(iv, iteration);
     uint8_t tag[16];
     uint8_t cipher[128];
     size_t plain_len = strlen(plain_text);

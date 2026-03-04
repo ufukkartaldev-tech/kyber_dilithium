@@ -47,7 +47,10 @@ void test_authenticated_encryption() {
     
     size_t sig_len;
     static uint8_t encrypted[128], decrypted[128], layer1[128], tag[16];
-    uint8_t nonce[12] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+    uint8_t nonce[12];
+    static uint32_t test_counter = 0;
+    Nonce::generate(nonce, test_counter++);
+    
     const char* original_msg = "GumusDil PQC: Kuantum Guvenli ve Kimlik Dogrulamali Veri Paketi!";
     size_t msg_len = strlen(original_msg);
     
@@ -120,7 +123,9 @@ void test_adaptive_authenticated_encryption() {
     const char* msg = "GumusDil Adaptive PQC Packet";
     size_t msg_len = strlen(msg);
     uint8_t encrypted[64], decrypted[64];
-    uint8_t nonce[12] = {0};
+    uint8_t nonce[12];
+    static uint32_t adaptive_counter = 1000;
+    Nonce::generate(nonce, adaptive_counter++);
 
     if (high_security) {
         Serial.println("SENSING: Baglanti mukemmel. Kyber-768 (High Sec) moduna geciliyor.");

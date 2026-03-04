@@ -46,6 +46,16 @@ public:
     static void derive_keys(uint8_t chacha_key[32], uint8_t aes_key[32], const uint8_t shared_secret[32]);
 };
 
+/**
+ * Nonce Üretici
+ * AES-GCM için 'Nonce Reuse' hatasını önlemek amacıyla msg_id + rastgele 
+ * hibrit bir yapı oluşturur.
+ */
+class Nonce {
+public:
+    static void generate(uint8_t iv[12], uint32_t counter);
+};
+
 } // namespace Symmetric
 } // namespace PQC
 
