@@ -126,17 +126,27 @@ bool KeyVault::load_key(const char* key_name, uint8_t* out_data, size_t len) {
 }
 
 bool KeyVault::destroy_vault() {
-    nvs_handle_t nvs_handle;
-    if (nvs_open("pqc_vault", NVS_READWRITE, &nvs_handle) == ESP_OK) {
-        nvs_erase_all(nvs_handle);
-        nvs_commit(nvs_handle);
-        nvs_close(nvs_handle);
-        #ifndef PQC_SILENT_MODE
-        Serial.println("KASA: Tüm kayıtlı anahtarlar imha edildi (Zero-Fill).");
-        #endif
-        return true;
+    nvs_handle_t h;
+    
+    // 1. Ana Kasa (Gizli Anahtarlar)
+    if (nvs_open("pqc_vault", NVS_READWRITE, &h) == ESP_OK) {
+        nvs_erase_all(h); nvs_commit(h); nvs_close(h);
     }
-    return false;
+    
+    // 2. Peer Kamu Anahtarları
+    if (nvs_open("pqc_peers", NVS_READWRITE, &h) == ESP_OK) {
+        nvs_erase_all(h); nvs_commit(h); nvs_close(h);
+    }
+
+    // 3. Sistem Ayarları ve Admin Root PK
+    if (nvs_open("pqc_sys", NVS_READWRITE, &h) == ESP_OK) {
+        nvs_erase_all(h); nvs_commit(h); nvs_close(h);
+    }
+
+    #ifndef PQC_SILENT_MODE
+    Serial.println("KASA: Tüm ağ ve anahtar verileri saniyeler içinde imha edildi (Panic Wipe).");
+    #endif
+    return true;
 }
 
 bool KeyVault::save_config_uint32(const char* name, uint32_t value) {

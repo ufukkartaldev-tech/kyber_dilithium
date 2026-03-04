@@ -263,6 +263,22 @@ void test_pq_handshake() {
     }
 }
 
+void test_anti_tamper() {
+    using namespace PQC::Security;
+    Serial.println("\n--- [SECURITY] ANTI-TAMPER & PANIC WIPE TEST ---");
+
+    // 1. Seri hata simülasyonu (Flood Attack)
+    Serial.println("TEST: Seri hatali imza gonderiliyor (Brute-force simulation)...");
+    for(int i=0; i<60; i++) {
+        SecurityOfficer::report_signature_result(false);
+        if (SecurityOfficer::is_system_locked()) break;
+    }
+
+    if (SecurityOfficer::is_system_locked()) {
+        Serial.println("SONUC: Panic Wipe gerceklesti, sistem 'Self-Destruct' modunda.");
+    }
+}
+
 void setup() {
     #ifndef PQC_SILENT_MODE
     Serial.begin(115200);
@@ -308,6 +324,10 @@ void setup() {
     Serial.print(HealthMonitor::check_rng_entropy() * 100.0); Serial.println("%");
     
     HealthMonitor::print_performance_table();
+    
+    // NOT: Bu test cihazdaki tüm anahtarları siler (Self-Destruct). 
+    // Gerçek kullanımda kapalı tutulmalıdır.
+    // test_anti_tamper(); 
 }
 
 void loop() {

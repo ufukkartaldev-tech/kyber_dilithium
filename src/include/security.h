@@ -37,9 +37,15 @@ public:
     static void check_entropy_lock();
 
 private:
-    static int failed_attempts;
+    static volatile int failed_attempts;
+    static volatile uint32_t last_fail_time;
     static const int MAX_ATTEMPTS = 5;
-    static bool system_locked;
+    static const int FLOOD_THRESHOLD = 50; // 30 sn'de 50 hata = Panic
+    
+    // Redundant Lock Flags (Hardware Glitch/Fault Injection Koruması)
+    static volatile bool system_locked_1;
+    static volatile uint32_t system_locked_2; 
+    static const uint32_t LOCK_MAGIC_VAL = 0xACE0BEEF;
 };
 
 } // namespace Security

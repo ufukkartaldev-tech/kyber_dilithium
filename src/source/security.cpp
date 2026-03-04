@@ -1,5 +1,6 @@
 #include "../include/security.h"
 #include "../include/health.h"
+#include "../include/storage.h"
 #include <string.h>
 
 #ifdef ARDUINO
@@ -9,12 +10,16 @@
 namespace PQC {
 namespace Security {
 
-int SecurityOfficer::failed_attempts = 0;
-bool SecurityOfficer::system_locked = false;
+volatile int SecurityOfficer::failed_attempts = 0;
+volatile uint32_t SecurityOfficer::last_fail_time = 0;
+volatile bool SecurityOfficer::system_locked_1 = false;
+volatile uint32_t SecurityOfficer::system_locked_2 = 0;
 
 void SecurityOfficer::init() {
     failed_attempts = 0;
-    system_locked = false;
+    last_fail_time = 0;
+    system_locked_1 = false;
+    system_locked_2 = 0;
 }
 
 void SecurityOfficer::check_entropy_lock() {
@@ -32,17 +37,36 @@ void SecurityOfficer::check_entropy_lock() {
 }
 
 void SecurityOfficer::report_signature_result(bool success) {
-    if (system_locked) return;
+    if (is_system_locked()) return;
+
+    uint32_t now = 0;
+    #ifdef ARDUINO
+    now = millis();
+    #endif
 
     if (success) {
-        failed_attempts = 0; // Basarili giriste sayaci sifirla
+        failed_attempts = 0; 
     } else {
-        #if defined(ARDUINO) && !defined(PQC_SILENT_MODE)
         failed_attempts++;
+        
+        // Brute-force flood protection (User Request: 30sn window)
+        if (now - last_fail_time < 30000) {
+           if (failed_attempts > FLOOD_THRESHOLD) {
+               #if defined(ARDUINO) && !defined(PQC_SILENT_MODE)
+               Serial.println("\n!!! GUVENLIK IHLALI: Seri Imza Hatasi (Flood Attack) Algilandi !!!");
+               #endif
+               panic_wipe();
+               return;
+           }
+        } else {
+           // 30 saniye gectiyse sayaci yariya indir (decay)
+           failed_attempts /= 2;
+        }
+        last_fail_time = now;
+
+        #if defined(ARDUINO) && !defined(PQC_SILENT_MODE)
         Serial.print("!!! GUVENLIK UYARISI: Yanlis Imza Denemesi "); 
         Serial.print(failed_attempts); Serial.print("/"); Serial.println(MAX_ATTEMPTS);
-        #else
-        failed_attempts++;
         #endif
         
         if (failed_attempts >= MAX_ATTEMPTS) {
@@ -52,15 +76,23 @@ void SecurityOfficer::report_signature_result(bool success) {
 }
 
 void SecurityOfficer::panic_wipe() {
-    system_locked = true;
+    system_locked_1 = true;
+    system_locked_2 = LOCK_MAGIC_VAL;
+    
     #if defined(ARDUINO) && !defined(PQC_SILENT_MODE)
     Serial.println("\n#############################################");
     Serial.println("# !!! PANIK MODU: GUVENLIK IHLALI TESPITI !!! #");
+    Serial.println("# Tüm Anahtarlar NVS Bellekten Siliniyor!     #");
+    Serial.println("###############################################");
     #endif
+
+    // Fiziksel İmha (KeyVault Wipe)
+    PQC::System::KeyVault::destroy_vault();
 }
 
 bool SecurityOfficer::is_system_locked() {
-    return system_locked;
+    // Redundant Check: İki kontrol de geçmeli (Fault Injection Koruması)
+    return (system_locked_1 == true) || (system_locked_2 == LOCK_MAGIC_VAL);
 }
 
 // Constant-Time Comparison (Timing Attack Koruması)
