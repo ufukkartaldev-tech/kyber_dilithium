@@ -40,6 +40,13 @@ private:
     static bool test_chacha20();
     static bool test_dilithium_malleability();
     
+    // Adversary (Hacker) Testleri
+    static bool test_replay_attack();
+    static bool test_fragment_flooding();
+    static bool test_rng_failure_lock();
+    static bool test_counter_overflow();
+    static bool test_flash_integrity_violation();
+    
     // Yardımcılar
     static void log_test(const char* name, bool result);
     static bool compare_bytes(const uint8_t* a, const uint8_t* b, size_t len);

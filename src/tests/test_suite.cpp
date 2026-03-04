@@ -56,15 +56,22 @@ void TestSuite::run_all_tests() {
     
     // 4. İleri Düzey Güvenlik (Multicore)
     log_test("Multicore (Core 0 & 1) Race Condition Test", test_multicore_safety());
-#else
-    log_test("Randomness Entropy (100 Keypairs)", test_randomness_entropy());
-    printf("[PC] Sistem kaynak testleri (Stack/Power/Multicore) PC uzerinde devre disi bırakildi.\n");
-#endif
     
     // 5. Dilithium DSA Güvenlik
     log_test("Dilithium Malleability", test_dilithium_malleability());
-    
-#ifdef ARDUINO
+
+    // 6. Adversary (Hacker) Simülasyonları
+    Serial.println("\n--- ADVERSARY (CHAOS) TESTS ---");
+    log_test("Anti-Replay Protection", test_replay_attack());
+    log_test("Buffer Flooding Resistance", test_fragment_flooding());
+    log_test("Flood Damage Self-Lock", test_rng_failure_lock());
+    log_test("Counter Wrap-around Safety", test_counter_overflow());
+    log_test("Flash Integrity Audit", test_flash_integrity_violation());
+#else
+    log_test("Randomness Entropy", test_randomness_entropy());
+    log_test("Dilithium Malleability", test_dilithium_malleability());
+    printf("[PC] Sistem kaynak testleri PC uzerinde devre disi bırakildi.\n");
+#endif
     Serial.println("\n===== OZET TEST RAPORU (SUMMARY) =====");
     Serial.println("------------------------------------------------------------------");
     Serial.println("| Test Adi              | Durum      | Muhendis Notu             |");

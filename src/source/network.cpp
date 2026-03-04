@@ -189,8 +189,8 @@ void Messenger::on_data_recv(const uint8_t* mac, const uint8_t* incomingData, in
     }
 
     if (header.type == MSG_DATA) {
-        // Anti-Replay
-        if (header.msg_id <= last_received_msg_id && header.msg_id != 0) return;
+        // Anti-Replay: Wrap-around korumalı imzalı karşılaştırma
+        if ((int32_t)(header.msg_id - last_received_msg_id) <= 0) return;
         
         static uint8_t current_session_mac[6] = {0};
         if (header.seq == 0) {
