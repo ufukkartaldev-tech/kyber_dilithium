@@ -31,6 +31,7 @@ public:
     // Hardware Security Status
     static bool is_flash_encrypted();
     static bool is_secure_boot_active();
+    static bool is_hardware_salt_active();
 
 private:
     static float calculate_shannon_entropy(const uint8_t* data, size_t len);

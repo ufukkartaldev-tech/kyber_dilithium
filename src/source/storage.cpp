@@ -10,6 +10,9 @@
 #include <nvs.h>
 #include "esp_system.h"
 #include "esp_mac.h"
+#include "esp_random.h"
+#include "esp_efuse.h"
+#include "esp_efuse_table.h"
 
 namespace PQC {
 namespace System {
@@ -34,24 +37,31 @@ void KeyVault::generate_master_key() {
     uint8_t secret_salt[32];
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
 
-    // Kasanin ikinci kilidi: Secret Salt (Donanimsal gizi bolgede saklanan tuz)
-    nvs_handle_t nvs_handle;
-    esp_err_t err = nvs_open("pqc_sys", NVS_READWRITE, &nvs_handle);
-    if (err == ESP_OK) {
-        size_t salt_len = 32;
-        if (nvs_get_blob(nvs_handle, "vault_salt", secret_salt, &salt_len) != ESP_OK) {
-            // İlk kurulum: Gercek rastgele tuz uret ve sakla
-            for(int i=0; i<32; i++) secret_salt[i] = (uint8_t)esp_random();
-            nvs_set_blob(nvs_handle, "vault_salt", secret_salt, 32);
-            nvs_commit(nvs_handle);
-            #ifndef PQC_SILENT_MODE
-            Serial.println("KEYVAULT: Yeni Gizli Tuz (Secret Salt) uretildi ve NVS'e gomuldu.");
-            #endif
+    // Gümüş Çözüm: Salt değerini NVS (Flash) yerine eFuse (Hardware) bloğundan oku.
+    // eFuse dışarıdan okunamaz hale getirilebilir, böylece Flash Dump anahtarı ele veremez.
+    bool hardware_secure = false;
+    #ifdef ARDUINO
+    esp_efuse_read_field_blob(ESP_EFUSE_USER_DATA, secret_salt, 256);
+    
+    // eFuse boş mu kontrol et (Geliştirme aşaması için NVS fallback)
+    uint32_t check = 0;
+    for(int i=0; i<32; i++) check |= secret_salt[i];
+    if (check != 0) hardware_secure = true;
+    #endif
+
+    if (!hardware_secure) {
+        nvs_handle_t nvs_handle;
+        if (nvs_open("pqc_sys", NVS_READWRITE, &nvs_handle) == ESP_OK) {
+            size_t salt_len = 32;
+            if (nvs_get_blob(nvs_handle, "vault_salt", secret_salt, &salt_len) != ESP_OK) {
+                for(int i=0; i<32; i++) secret_salt[i] = (uint8_t)esp_random();
+                nvs_set_blob(nvs_handle, "vault_salt", secret_salt, 32);
+                nvs_commit(nvs_handle);
+            }
+            nvs_close(nvs_handle);
+        } else {
+            memset(secret_salt, 0xA5, 32);
         }
-        nvs_close(nvs_handle);
-    } else {
-        // Yedek plan (NVS hatasi durumunda MAC'e don)
-        memset(secret_salt, 0xA5, 32);
     }
     
     // MASTER KEY DERIVATION: MAC + Secret Salt 

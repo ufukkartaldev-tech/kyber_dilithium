@@ -7,6 +7,8 @@
 #include <cmath> // log2 için
 #include "esp_flash_encrypt.h"
 #include "esp_secure_boot.h"
+#include "esp_efuse.h"
+#include "esp_efuse_table.h"
 
 namespace PQC {
 namespace System {
@@ -45,6 +47,7 @@ void HealthMonitor::print_performance_table() {
     Serial.print("| System Uptime        | "); Serial.print(millis()/1000); Serial.println("           | sec  |");
     Serial.print("| Flash Encryption    | "); Serial.print(is_flash_encrypted() ? "ACTIVE" : "INACTIVE"); Serial.println("       |      |");
     Serial.print("| Secure Boot         | "); Serial.print(is_secure_boot_active() ? "ACTIVE" : "INACTIVE"); Serial.println("       |      |");
+    Serial.print("| Hardware Secret Salt | "); Serial.print(is_hardware_salt_active() ? "ACTIVE" : "INACTIVE (NVS)"); Serial.println(" |      |");
     Serial.println("======================================");
     #endif
 }
@@ -102,6 +105,7 @@ namespace System {
 void HealthMonitor::report_state(const char* n, uint32_t d) { printf("[PC HEALTH] %s: %u us\n", n, d); }
 size_t HealthMonitor::get_free_ram() { return 0; }
 size_t HealthMonitor::get_min_free_ram() { return 0; }
+bool HealthMonitor::is_hardware_salt_active() { return false; }
 void HealthMonitor::print_performance_table() { printf("[PC] System report only available on ESP32 hardware.\n"); }
 }
 }
