@@ -12,9 +12,12 @@ namespace Memory {
 
 /**
  * PQC_Workspace (Gümüşhane Usulü Bellek Geri Dönüşümü)
- * Bit-packing teknolojisi ile RAM kullanımında %40-50 tasarruf hedefler.
+ * Core 0 (Ağ) ve Core 1 (Kriptografi) için ayrı bellek alanları.
+ * Bellek çakışmalarını ve kitlenmeleri önler.
  */
-union SharedWorkspace {
+
+// Core 1 - Kriptografik Matematik için 16KB Union (sadece Core 1 kullanır)
+union CryptoWorkspace {
     // 1. Yazılım Veri Katmanı (Keys, Ciphertexts)
     struct {
         uint8_t pk[3000];
@@ -44,7 +47,15 @@ union SharedWorkspace {
     uint8_t raw[16384]; 
 };
 
-extern SharedWorkspace workspace;
+// Core 0 - Ağ verileri için ayrı buffer (Ring Buffer dışında kalanlar)
+struct NetworkWorkspace {
+    uint8_t temp_buffer[4096];  // Geçici ağ verileri
+    uint8_t encryption_buffer[2048];  // Şifreleme için geçici alan
+    uint8_t packet_buffer[512];  // Paket oluşturma için
+};
+
+extern CryptoWorkspace crypto_workspace;  // Sadece Core 1 erişir
+extern NetworkWorkspace network_workspace;  // Sadece Core 0 erişir
 
 } // namespace Memory
 } // namespace PQC

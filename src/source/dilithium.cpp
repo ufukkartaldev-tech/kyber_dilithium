@@ -79,10 +79,10 @@ int Dilithium2::keypair(uint8_t *pk, uint8_t *sk) {
     Security::SecurityOfficer::check_entropy_lock();
     uint8_t seedbuf[3 * DILITHIUM_SEEDBYTES];
     uint8_t tr[DILITHIUM_TRBYTES];
-    polyvecl &s1 = workspace.maths.dvl;
-    polyveck &s2 = workspace.maths.dvk1;
-    polyveck &t1 = workspace.maths.dvk2;
-    polyveck &t0 = workspace.maths.dvk3;
+    polyvecl &s1 = crypto_workspace.maths.dvl;
+    polyveck &s2 = crypto_workspace.maths.dvk1;
+    polyveck &t1 = crypto_workspace.maths.dvk2;
+    polyveck &t0 = crypto_workspace.maths.dvk3;
 
     DSA_RANDOM(seedbuf, DILITHIUM_SEEDBYTES);
     sha3_512(seedbuf, seedbuf, DILITHIUM_SEEDBYTES);
